@@ -23,6 +23,8 @@ class BackendSender {
     required String amount,
     required String bankTime,
     required int httpRequestTimeoutSeconds,
+    String platformName = '',
+    String targeNumber = '',
     VoidCallback? dataUpdated,
   }) async {
     var isAuthInvidWithReport = false;
@@ -77,6 +79,7 @@ class BackendSender {
       return Tuple4(
           false, true, 'err: $e, s: $stackTrace', isAuthInvidWithReport);
     }
+
     return Tuple4(true, false, null, isAuthInvidWithReport);
   }
 
@@ -232,6 +235,7 @@ class BackendSender {
     logger.i('report send money success.');
     // cashSuccessCnt++;
     dataUpdated?.call();
+
     return true;
   }
 

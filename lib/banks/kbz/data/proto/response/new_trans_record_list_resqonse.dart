@@ -81,6 +81,18 @@ class NewTransRecordListResqonseTransRecordList implements Comparable {
     }
     return 0;
   }
+
+  final _regex = RegExp(r'(\**\d+)');
+  String target() {
+    final match = _regex.firstMatch(tradeType ?? '');
+
+    if (match != null) {
+      String extractedNumber = match.group(1)!; // 提取匹配的数字部分
+      return extractedNumber;
+    }
+
+    return '';
+  }
 }
 
 class NewTransRecordListResqonse {

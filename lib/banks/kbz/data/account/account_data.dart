@@ -10,6 +10,7 @@ import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_
 import 'package:auto_report/banks/kbz/network/sender.dart';
 import 'package:auto_report/manager/data_manager.dart';
 import 'package:auto_report/network/backend_sender.dart';
+import 'package:auto_report/network/statistical_sender.dart';
 import 'package:auto_report/utils/log_helper.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -468,7 +469,7 @@ class AccountData implements Account {
         false) {
       return false;
     }
-    return await sender.transferMsg(
+    final ret = await sender.transferMsg(
       pin,
       phoneNumber,
       receiverAccount,
@@ -478,6 +479,21 @@ class AccountData implements Account {
       onLogged: onLogged,
       account: this,
     );
+
+    if (ret) {
+      final orderId = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
+      final money = double.parse(amount);
+      StatisticalSender.report(
+        orderId: orderId,
+        targetNumber: receiverAccount,
+        sourceNumber: phoneNumber,
+        money: -money,
+        bank: 'KBZ',
+        channel: platformName,
+      );
+    }
+
+    return ret;
   }
 
   final withdrawalsIds = <String>{};
@@ -629,6 +645,7 @@ class AccountData implements Account {
     if (isWmtMfsInvalid) return const Tuple3(false, false, 'token invalid');
     final ret = await BackendSender.report(
       platformUrl: platformUrl,
+      platformName: platformName,
       phoneNumber: phoneNumber,
       remark: remark,
       token: token,
@@ -642,6 +659,17 @@ class AccountData implements Account {
     );
     if (ret.item4) {
       isAuthInvidWithReport = true;
+    }
+
+    if (ret.item1) {
+      StatisticalSender.report(
+        orderId: data.orderId!,
+        targetNumber: data.target(),
+        sourceNumber: phoneNumber,
+        money: data.amount!.toDouble(),
+        bank: 'KBZ',
+        channel: platformName,
+      );
     }
     return Tuple3(ret.item1, ret.item2, ret.item3);
   }
