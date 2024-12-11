@@ -21,4 +21,16 @@ void main() {
     expect(StringHelper.transferorConvert('xxx-x-x5305x'), '5305x');
     expect(StringHelper.transferorConvert('xx---xxx-xxx-xxxx5305-x'), '5305x');
   });
+
+  // testWidgets('report', (WidgetTester tester) async {
+  //   var ret = await StatisticalSender.report(
+  //     orderId: '123456',
+  //     targetNumber: '111111111',
+  //     sourceNumber: '222222222',
+  //     money: 1000,
+  //     bank: 'Test',
+  //     channel: 'channel',
+  //   );
+  //   expect(ret, true);
+  // });
 }

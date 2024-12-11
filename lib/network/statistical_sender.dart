@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:auto_report/banks/wave/config/config.dart';
 import 'package:auto_report/network/proto/statistical_transfer_report.dart';
 import 'package:auto_report/utils/log_helper.dart';
@@ -14,15 +16,18 @@ class StatisticalSender {
     try {
       final url = Uri.http(_host, path);
       logger.i('url: ${url.toString()}');
-      logger.i('host: $_host, path: $path');
+      logger.i('host: $_host, path: $path, body: $body');
+      final headers = {'Content-Type': 'application/json'};
+      final timer = Future.delayed(
+          const Duration(seconds: Config.httpRequestTimeoutSeconds));
       final response = await Future.any([
-        http.post(url, body: body),
-        Future.delayed(
-            const Duration(seconds: Config.httpRequestTimeoutSeconds)),
+        http.post(url, headers: headers, body: body),
+        timer,
       ]);
       return response;
     } catch (e, stack) {
       logger.e(e, stackTrace: stack);
+      logger.e(e);
       return null;
     }
   }
@@ -36,24 +41,30 @@ class StatisticalSender {
     required String channel,
   }) async {
     try {
-      final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch;
-      final reqBody = StatisticalTransferReport(
-        orderId: orderId,
-        targetNumber: targetNumber,
-        sourceNumber: sourceNumber,
-        money: money,
-        bank: bank,
-        timestamp: timestamp,
-      );
+      final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch * 10;
+      final reqBody = StatisticalTransferReport(data: [
+        StatisticalTransferReportData(
+          orderId: orderId,
+          targetNumber: targetNumber,
+          sourceNumber: sourceNumber,
+          money: money,
+          bank: bank,
+          channel: channel,
+          timestamp: timestamp,
+        )
+      ]);
 
       logger.i(
           'report to statistical server. timestamp: $timestamp, reqBody: ${reqBody.toString()}');
-      final response = await _post(path: 'tool_apply', body: [reqBody]);
+      final response = await _post(
+        path: 'api/post_data',
+        body: jsonEncode(reqBody.toJson()),
+      );
 
       if (response == null) return false;
 
       final body = response.body;
-      logger.i('res body: $body');
+      logger.i('res body: $body, res code: ${response.statusCode}');
 
       return true;
     } catch (e, stackTrace) {
