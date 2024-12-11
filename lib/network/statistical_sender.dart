@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 
 class StatisticalSender {
   // 测试服
-  static const _host = "8.222.131.154";
+  static const _host = "47.84.202.171:7001";
 
   static Future<http.Response?> _post({
     required String path,
