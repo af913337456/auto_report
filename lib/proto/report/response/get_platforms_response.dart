@@ -50,18 +50,21 @@ class GetPlatformsResponse {
       "key": "myanmar6",
       "mark": "69d80bc75f239f99087e5807c86e0c7a"
     }
-  ]
+  ],
+  "log_url": "http://"
 } 
 */
 
   bool? status;
   String? msg;
   List<GetPlatformsResponseData?>? data;
+  String? logUrl;
 
   GetPlatformsResponse({
     this.status,
     this.msg,
     this.data,
+    this.logUrl,
   });
   GetPlatformsResponse.fromJson(Map<String, dynamic> json) {
     status = json['status'];
@@ -73,23 +76,22 @@ class GetPlatformsResponse {
         arr0.add(GetPlatformsResponseData.fromJson(v));
       });
       data = arr0;
-      // data = json['data']
-      //     .map((v) => GetPlatformsResponseData.fromJson(v))
-      //     .toList<GetPlatformsResponseData>();
     }
+    logUrl = json['log_url']?.toString();
   }
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
     data['status'] = status;
     data['msg'] = msg;
     if (this.data != null) {
-      // final v = this.data;
-      // final arr0 = [];
-      // v!.forEach((v) {
-      //   arr0.add(v!.toJson());
-      // });
-      data['data'] = this.data!.map((v) => v!.toJson()).toList();
+      final v = this.data;
+      final arr0 = [];
+      for (var v in v!) {
+        arr0.add(v!.toJson());
+      }
+      data['data'] = arr0;
     }
+    data['log_url'] = logUrl;
     return data;
   }
 }

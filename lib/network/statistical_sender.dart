@@ -7,16 +7,17 @@ import 'package:http/http.dart' as http;
 
 class StatisticalSender {
   // 测试服
-  static const _host = "47.84.202.171:7001";
+  static var host = "http://47.84.202.171:7001";
 
   static Future<http.Response?> _post({
     required String path,
     Object? body,
   }) async {
     try {
-      final url = Uri.http(_host, path);
+      // final url = Uri.http(host, path);
+      final url = Uri.parse('$host/$path');
       logger.i('url: ${url.toString()}');
-      logger.i('host: $_host, path: $path, body: $body');
+      logger.i('host: $host, path: $path, body: $body');
       final headers = {'Content-Type': 'application/json'};
       final timer = Future.delayed(
           const Duration(seconds: Config.httpRequestTimeoutSeconds));

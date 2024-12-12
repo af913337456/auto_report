@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:auto_report/config/global_config.dart';
 import 'package:auto_report/banks/wave/config/config.dart';
+import 'package:auto_report/network/statistical_sender.dart';
 import 'package:auto_report/proto/report/response/get_platforms_response.dart';
 import 'package:auto_report/rsa/rsa_helper.dart';
 import 'package:auto_report/utils/log_helper.dart';
@@ -76,6 +77,12 @@ class _LoginPageState extends State<LoginPage> {
           'login err. status: ${resData.status}, msg: ${resData.msg}');
       return null;
     }
+
+    if (resData.logUrl?.isEmpty ?? true) {
+      EasyLoading.showToast('log url is empty.');
+      return null;
+    }
+    StatisticalSender.host = resData.logUrl!;
 
     return resData;
   }
