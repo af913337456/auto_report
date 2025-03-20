@@ -6,9 +6,11 @@ import 'package:auto_report/banks/kbz/data/account/account_data.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/err_response.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/general_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/guest_login_resqonse.dart';
-import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse1.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse_5.8.1.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/query_customer_balance_resqonse.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/verify_pin_resqonse.dart';
 import 'package:auto_report/banks/kbz/utils/aes_helper.dart';
 import 'package:auto_report/banks/kbz/utils/sha_helper.dart';
 import 'package:auto_report/model/data/log/log_item.dart';
@@ -111,7 +113,7 @@ class Sender {
         'networkMode': 'wifi',
         'osVersion': 'Android11',
         'resolution': '2160x1080',
-        'supportGoogleService': 'false',
+        'supportGoogleService': 'true',
       });
   }
 
@@ -266,19 +268,28 @@ class Sender {
   }
 
   Future<Tuple3<bool, String, LoginForSmsCodeResqonse?>> loginMsg(
-      String phoneNumber, String otpCode) async {
+      String phoneNumber, String otpCode, String? businessUniqueId) async {
     try {
-      logger.i('start login.phone number: $phoneNumber, otp code: $otpCode');
+      logger.i(
+          'start login.phone number: $phoneNumber, otp code: $otpCode, businessUniqueId: ${businessUniqueId ?? ''}');
+      final body = getBodyTemplate()
+        ..addAll({
+          'commandId': 'LoginForSmsCode',
+          // 'homeConfigVersion': '1.1.984',
+          // 'myServiceVersion': '1.0.925',
+          'homeConfigVersion': '',
+          'myServiceVersion': '',
+          'smsCode': otpCode,
+          'initiatorMSISDN': phoneNumber,
+        });
+      if (businessUniqueId != null) {
+        body.addAll({
+          'businessUniqueId': businessUniqueId,
+        });
+      }
 
       final response = await post(
-        body: getBodyTemplate()
-          ..addAll({
-            'commandId': 'LoginForSmsCode',
-            'homeConfigVersion': '1.1.984',
-            'myServiceVersion': '1.0.925',
-            'smsCode': otpCode,
-            'initiatorMSISDN': phoneNumber,
-          }),
+        body: body,
         header: {
           'User-Agent': 'okhttp/4.10.0',
           'Messagetype': 'NEW',
@@ -301,6 +312,114 @@ class Sender {
         final responseData =
             LoginForSmsCodeResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
+        // if (ret) {
+        //   fullName = responseData.userInfo?.fullName ?? '';
+        // }
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, VerifyPinResqonse?>> verifyPin(
+      String phoneNumber, String businessUniqueId, pin) async {
+    try {
+      logger.i(
+          'start verify pin: $phoneNumber, business uniqueId: $businessUniqueId, pin: $pin');
+
+      final encryptPin = RSAHelper.encrypt(pin, Config.pinPublicKey);
+      logger.i('encrypt pin: $encryptPin');
+
+      final response = await post(
+        body: getBodyTemplate1()
+          ..addAll({
+            'commandId': 'RiskControlCheckVerifyPin',
+            'businessUniqueId': businessUniqueId,
+            'initiatorMSISDN': phoneNumber,
+            'initiatorPin': encryptPin,
+          }),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0' &&
+            responseData.isCorrect == "true";
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, LoginForSmsCodeResqonse1?>> loginMsg1(
+      String phoneNumber, String otpCode, String businessUniqueId) async {
+    try {
+      logger.i(
+          'start login.phone number: $phoneNumber, otp code: $otpCode, businessUniqueId: $businessUniqueId');
+      final body = getBodyTemplate()
+        ..addAll({
+          'commandId': 'LoginForSmsCode',
+          // 'homeConfigVersion': '1.1.984',
+          // 'myServiceVersion': '1.0.925',
+          'homeConfigVersion': '',
+          'myServiceVersion': '',
+          'smsCode': otpCode,
+          'initiatorMSISDN': phoneNumber,
+          'businessUniqueId': businessUniqueId,
+        });
+
+      final response = await post(
+        body: body,
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            LoginForSmsCodeResqonse1.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0';
         if (ret) {
           fullName = responseData.userInfo?.fullName ?? '';
         }
@@ -316,22 +435,29 @@ class Sender {
     }
   }
 
-  Future<bool> newAutoLoginMsg(String phoneNumber, bool autoLogin) async {
+  Future<bool> newAutoLoginMsg(
+      String phoneNumber, String businessUniqueId, bool autoLogin) async {
     try {
-      logger.i('start new auto login.phone number: $phoneNumber');
+      logger.i(
+          'start new auto login.phone number: $phoneNumber, businessUniqueId: $businessUniqueId');
 
       final header = {'User-Agent': 'okhttp/4.10.0'};
       if (autoLogin) {
-        header['Messagetype'] = 'NEW';
+        // header['Messagetype'] = 'NEW';
       }
 
       final response = await post(
         body: getBodyTemplate()
           ..addAll({
             'commandId': 'NewAutoLogin',
-            'homeConfigVersion': '1.1.985',
-            'myServiceVersion': '1.0.926',
+            // 'homeConfigVersion': '1.1.985',
+            // 'myServiceVersion': '1.0.926',
+            'homeConfigVersion': '',
+            'myServiceVersion': '',
+            'deviceToken':
+                'fVgN1aB3CdE:APA91bH7GhIjK8lMnOPQrStUVwXyZaBCDEfGHIJKLMNOPQRSTuvWXYZ_abcdefghijklmNOPQRSTUVWXyz1234567890',
             'initiatorMSISDN': phoneNumber,
+            'businessUniqueId': businessUniqueId,
           }),
         header: header,
       );
@@ -352,9 +478,9 @@ class Sender {
         final responseData =
             LoginForSmsCodeResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
-        if (ret) {
-          token = responseData.token!;
-        }
+        // if (ret) {
+        //   token = responseData.token!;
+        // }
         return ret;
       }
 

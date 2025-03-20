@@ -173,6 +173,10 @@ class _AuthPageState extends State<AuthPage> {
       EasyLoading.showToast('id is empty.');
       return false;
     }
+    if (_pin?.isEmpty ?? true) {
+      EasyLoading.showToast('pin is empty.');
+      return false;
+    }
     if (checkOtp && (_otpCode?.isEmpty ?? true)) {
       EasyLoading.showToast('auth code is empty.');
       return false;
@@ -198,18 +202,45 @@ class _AuthPageState extends State<AuthPage> {
     EasyLoading.show(status: 'loading...');
     try {
       {
-        final ret = await _sender.loginMsg(phoneNumber, otpCode);
+        final ret = await _sender.loginMsg(phoneNumber, otpCode, null);
         if (!ret.item1) {
           EasyLoading.showToast('login fail.msg: ${ret.item2}');
           logger.i('login fail.msg: ${ret.item2}');
           return;
         }
-
         final res = ret.item3!;
 
-        if (res.nrcVerifyEnable == '1') {
+        final ret1 =
+            await _sender.verifyPin(phoneNumber, res.businessUniqueId!, _pin);
+        logger.i('verify pin ret: ${ret1.item1}');
+
+        if (!ret1.item1) return;
+
+        final ret2 = await _sender.loginMsg1(
+            phoneNumber, otpCode, res.businessUniqueId!);
+        if (!ret2.item1) {
+          EasyLoading.showToast('login fail 1.msg: ${ret.item2}');
+          logger.i('login fail 1.msg: ${ret.item2}');
+          return;
+        }
+        final res1 = ret2.item3!;
+
+        // 验证身份证
+        {
+          final ret = await _sender.identityVerificationMsg(phoneNumber, id);
+          if (!ret) {
+            EasyLoading.showToast('identity verification fail.');
+            logger.i('identity verification fail.');
+            return;
+          }
+        }
+
+        // final ret2 = await _sender.newAutoLoginMsg(
+        //     phoneNumber, res.businessUniqueId!, false);
+        logger.i('verify pin ret: ${ret1.item1}');
+        if (res1.nrcVerifyEnable == '1') {
           // 新设备
-          _sender.token = res.userInfo!.token;
+          _sender.token = res1.userInfo!.token;
 
           // 验证身份证
           {
@@ -230,8 +261,6 @@ class _AuthPageState extends State<AuthPage> {
           //     return;
           //   }
           // }
-        } else {
-          _sender.token = res.token;
         }
 
         // // 获取余额
@@ -374,7 +403,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
               child: TextFormField(
                 controller: TextEditingController()..text = _phoneNumber ?? "",
-                onChanged: (value) => _phoneNumber = value,
+                onChanged: (value) => _phoneNumber = value.trim(),
                 // validator: _validator,
                 keyboardType: TextInputType.number,
                 decoration: _buildInputDecoration("phone number", Icons.phone),
@@ -384,7 +413,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
               child: TextFormField(
                 controller: TextEditingController()..text = _id ?? "",
-                onChanged: (value) => _id = value,
+                onChanged: (value) => _id = value.trim(),
                 // validator: _validator,
                 keyboardType: TextInputType.number,
                 decoration: _buildInputDecoration("id", Icons.password),
@@ -394,7 +423,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
               child: TextFormField(
                 controller: TextEditingController()..text = _pin ?? "",
-                onChanged: (value) => _pin = value,
+                onChanged: (value) => _pin = value.trim(),
                 // validator: _validator,
                 keyboardType: TextInputType.number,
                 decoration: _buildInputDecoration("pin", Icons.password),
@@ -406,7 +435,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
               child: TextFormField(
                 controller: TextEditingController()..text = _otpCode ?? "",
-                onChanged: (value) => _otpCode = value,
+                onChanged: (value) => _otpCode = value.trim(),
                 // validator: _validator,
                 keyboardType: TextInputType.number,
                 decoration: _buildInputDecoration("otp code", Icons.security),
@@ -416,7 +445,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
               child: TextFormField(
                 controller: TextEditingController()..text = _remark ?? "",
-                onChanged: (value) => _remark = value,
+                onChanged: (value) => _remark = value.trim(),
                 // validator: _validator,
                 keyboardType: TextInputType.text,
                 decoration: _buildInputDecoration("remark", Icons.tag),
