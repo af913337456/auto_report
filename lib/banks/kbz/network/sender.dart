@@ -267,7 +267,9 @@ class Sender {
     return false;
   }
 
-  Future<Tuple3<bool, String, LoginForSmsCodeResqonse?>> loginMsg(
+  Future<
+      Tuple4<bool, String, LoginForSmsCodeResqonse?,
+          LoginForSmsCodeResqonse1?>> loginMsg(
       String phoneNumber, String otpCode, String? businessUniqueId) async {
     try {
       logger.i(
@@ -299,7 +301,7 @@ class Sender {
       if (response is! http.Response) {
         EasyLoading.showError('request otp timeout');
         logger.i('request otp timeout');
-        return const Tuple3(false, 'request otp timeout', null);
+        return const Tuple4(false, 'request otp timeout', null, null);
       }
 
       logger.i('Response status: ${response.statusCode}');
@@ -315,15 +317,22 @@ class Sender {
         // if (ret) {
         //   fullName = responseData.userInfo?.fullName ?? '';
         // }
-        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+        if (responseData.businessUniqueId?.isNotEmpty ?? false) {
+          return Tuple4(
+              ret, responseData.responseDesc ?? '', responseData, null);
+        }
+        final responseData1 =
+            LoginForSmsCodeResqonse1.fromJson(jsonDecode(decryptBody));
+        return Tuple4(
+            ret, responseData.responseDesc ?? '', null, responseData1);
       }
 
-      return Tuple3(false, response.body, null);
+      return Tuple4(false, response.body, null, null);
     } catch (e, stackTrace) {
       logger.e('login err: $e', stackTrace: stackTrace);
       EasyLoading.showError('login err, code: $e',
           dismissOnTap: true, duration: const Duration(seconds: 60));
-      return Tuple3(false, 'login err: $e', null);
+      return Tuple4(false, 'login err: $e', null, null);
     }
   }
 

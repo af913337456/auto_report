@@ -208,22 +208,25 @@ class _AuthPageState extends State<AuthPage> {
           logger.i('login fail.msg: ${ret.item2}');
           return;
         }
-        final res = ret.item3!;
+        final res = ret.item3;
+        var res1 = ret.item4;
 
-        final ret1 =
-            await _sender.verifyPin(phoneNumber, res.businessUniqueId!, _pin);
-        logger.i('verify pin ret: ${ret1.item1}');
+        if (res != null) {
+          final ret1 =
+              await _sender.verifyPin(phoneNumber, res.businessUniqueId!, _pin);
+          logger.i('verify pin ret: ${ret1.item1}');
 
-        if (!ret1.item1) return;
+          if (!ret1.item1) return;
 
-        final ret2 = await _sender.loginMsg1(
-            phoneNumber, otpCode, res.businessUniqueId!);
-        if (!ret2.item1) {
-          EasyLoading.showToast('login fail 1.msg: ${ret.item2}');
-          logger.i('login fail 1.msg: ${ret.item2}');
-          return;
+          final ret2 = await _sender.loginMsg1(
+              phoneNumber, otpCode, res.businessUniqueId!);
+          if (!ret2.item1) {
+            EasyLoading.showToast('login fail 1.msg: ${ret.item2}');
+            logger.i('login fail 1.msg: ${ret.item2}');
+            return;
+          }
+          res1 = ret2.item3!;
         }
-        final res1 = ret2.item3!;
 
         // 验证身份证
         {
@@ -237,10 +240,9 @@ class _AuthPageState extends State<AuthPage> {
 
         // final ret2 = await _sender.newAutoLoginMsg(
         //     phoneNumber, res.businessUniqueId!, false);
-        logger.i('verify pin ret: ${ret1.item1}');
-        if (res1.nrcVerifyEnable == '1') {
+        if (res1?.nrcVerifyEnable == '1') {
           // 新设备
-          _sender.token = res1.userInfo!.token;
+          _sender.token = res1?.userInfo!.token;
 
           // 验证身份证
           {
