@@ -179,7 +179,9 @@ class AccountData implements Account {
   }) async {
     try {
       final url =
-          Uri.https(Config.host, 'v3/mfs-customer/utility/tnx-histories', {
+          // Uri.https(Config.host, 'v3/mfs-customer/utility/tnx-histories', {
+          Uri.https(
+              Config.host, 'v3/mfs-customer/tnxhistory-utility/tnx-histories', {
         'limit': '$limit',
         'offset': '$offset',
       });
