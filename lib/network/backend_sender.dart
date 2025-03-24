@@ -22,6 +22,7 @@ class BackendSender {
     required String type,
     required String amount,
     required String bankTime,
+    required String payCardNum,
     required int httpRequestTimeoutSeconds,
     String platformName = '',
     String targeNumber = '',
@@ -46,6 +47,7 @@ class BackendSender {
           'order_type': 'p2p',
           'pay_money': amount, // '${data.amount}',
           'bank_time': bankTime, //'${data.tradeTime}',
+          'pay_card_num': payCardNum,
         }),
         Future.delayed(Duration(seconds: httpRequestTimeoutSeconds)),
       ]);

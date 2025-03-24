@@ -787,6 +787,7 @@ class AccountData implements Account {
       type: '9002',
       amount: '${data.amount}',
       bankTime: '${data.transDate}',
+      payCardNum: data.target(),
       httpRequestTimeoutSeconds: Config.httpRequestTimeoutSeconds,
     );
     if (ret.item4) {
