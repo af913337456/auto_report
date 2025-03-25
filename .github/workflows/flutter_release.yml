@@ -70,8 +70,7 @@ jobs:
     - name: Rename APK
       run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: apk-${{ matrix.bank }}
         path: build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
@@ -85,20 +84,18 @@ jobs:
         id: extract_version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Download KBZ APK
-        uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: apk-kbz
           path: ./downloads/kbz
 
-      - name: Download Wave APK
-        uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: apk-wave
           path: ./downloads/wave
 
       - name: List downloaded files
-        run: find ./downloads -type f | sort
+        run: ls -R ./downloads
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
