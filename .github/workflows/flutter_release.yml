@@ -90,7 +90,9 @@ jobs:
     steps:
       - name: Extract tag version
         id: extract_version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_ENV
 
       - uses: actions/download-artifact@v4
         with:
@@ -98,15 +100,15 @@ jobs:
           path: ./downloads/${{ matrix.bank }}
 
       - name: List downloaded files
-        if: ${{ matrix.bank == 'kbz' }}  # 只在第一个 matrix 运行时执行
+        if: ${{ matrix.bank == 'kbz' }}
         run: ls -R ./downloads
 
       - name: Create GitHub Release
-        if: ${{ matrix.bank == 'kbz' }}  # 只在第一个 matrix 运行时执行
+        if: ${{ matrix.bank == 'kbz' }}
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          name: Release ${{ github.ref }}
+          name: Release ${{ env.version }}
           body: |
             auto report新版本发布了!
             
