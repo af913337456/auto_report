@@ -10,7 +10,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        bank: [kbz, wave]
+        bank: [kbz, wave, kbiz]
         include:
           - bank: kbz
             app_name: "kbz report"
@@ -18,6 +18,9 @@ jobs:
           - bank: wave
             app_name: "wave report"
             logo: "ic_wave_logo.png"
+          - bank: kbiz
+            app_name: "kbiz report"
+            logo: "ic_bank_logo.png"
 
     steps:
     - name: Checkout repository
@@ -96,6 +99,11 @@ jobs:
           name: apk-wave
           path: ./downloads/wave
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-kbiz
+          path: ./downloads/kbiz
+
       - name: List downloaded files
         run: ls -R ./downloads
 
@@ -110,8 +118,10 @@ jobs:
             包含以下版本：
             - KBZ Reporter
             - Wave Reporter
+            - KBIZ Reporter
           draft: false
           prerelease: false
           files: |
             ./downloads/kbz/*
             ./downloads/wave/*
+            ./downloads/kbiz/*
