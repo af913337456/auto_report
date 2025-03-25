@@ -86,6 +86,8 @@ jobs:
 
       - name: Download all APKs
         uses: actions/download-artifact@v3
+        with:
+          path: downloads  # 指定下载路径
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -101,5 +103,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            apk-kbz/kbz_reporter_${{ env.version }}.apk
-            apk-wave/wave_reporter_${{ env.version }}.apk
+            downloads/apk-kbz/kbz_reporter_${{ env.version }}.apk
+            downloads/apk-wave/wave_reporter_${{ env.version }}.apk
