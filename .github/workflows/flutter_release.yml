@@ -84,6 +84,9 @@ jobs:
   create-release:
     needs: build-and-publish
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        bank: [kbz, wave, kbiz]
     steps:
       - name: Extract tag version
         id: extract_version
@@ -91,23 +94,15 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: apk-kbz
-          path: ./downloads/kbz
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: apk-wave
-          path: ./downloads/wave
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: apk-kbiz
-          path: ./downloads/kbiz
+          name: apk-${{ matrix.bank }}
+          path: ./downloads/${{ matrix.bank }}
 
       - name: List downloaded files
+        if: ${{ matrix.bank == 'kbz' }}  # 只在第一个 matrix 运行时执行
         run: ls -R ./downloads
 
       - name: Create GitHub Release
+        if: ${{ matrix.bank == 'kbz' }}  # 只在第一个 matrix 运行时执行
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -122,6 +117,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./downloads/kbz/*
-            ./downloads/wave/*
-            ./downloads/kbiz/*
+            ./downloads/**/*.apk
