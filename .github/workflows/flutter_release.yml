@@ -84,10 +84,17 @@ jobs:
         id: extract_version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Download all APKs
+      - name: Download KBZ APK
         uses: actions/download-artifact@v3
         with:
-          path: downloads  # 指定下载路径
+          name: apk-kbz
+          path: downloads/kbz
+
+      - name: Download Wave APK
+        uses: actions/download-artifact@v3
+        with:
+          name: apk-wave
+          path: downloads/wave
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -103,5 +110,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            downloads/apk-kbz/kbz_reporter_${{ env.version }}.apk
-            downloads/apk-wave/wave_reporter_${{ env.version }}.apk
+            downloads/kbz/kbz_reporter_${{ env.version }}.apk
+            downloads/wave/wave_reporter_${{ env.version }}.apk
