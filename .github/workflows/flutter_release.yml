@@ -84,9 +84,6 @@ jobs:
   create-release:
     needs: build-and-publish
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        bank: [kbz, wave, kbiz]
     steps:
       - name: Extract tag version
         id: extract_version
@@ -96,19 +93,18 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: apk-${{ matrix.bank }}
-          path: ./downloads/${{ matrix.bank }}
+          pattern: apk-*
+          path: ./downloads
+          merge-multiple: true
 
       - name: List downloaded files
-        if: ${{ matrix.bank == 'kbz' }}
         run: ls -R ./downloads
 
       - name: Create GitHub Release
-        if: ${{ matrix.bank == 'kbz' }}
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          name: Release ${{ env.version }}
+          name: ${{ env.version }}
           body: |
             auto report新版本发布了!
             
