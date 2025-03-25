@@ -75,6 +75,7 @@ jobs:
       with:
         name: apk-${{ matrix.bank }}
         path: build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
+        retention-days: 1
 
   create-release:
     needs: build-and-publish
@@ -88,13 +89,16 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: apk-kbz
-          path: downloads/kbz
+          path: ./downloads/kbz
 
       - name: Download Wave APK
         uses: actions/download-artifact@v3
         with:
           name: apk-wave
-          path: downloads/wave
+          path: ./downloads/wave
+
+      - name: List downloaded files
+        run: find ./downloads -type f | sort
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -105,10 +109,10 @@ jobs:
             auto report新版本发布了!
             
             包含以下版本：
-            - KBZ Reporter ${{ env.version }}
-            - Wave Reporter ${{ env.version }}
+            - KBZ Reporter
+            - Wave Reporter
           draft: false
           prerelease: false
           files: |
-            downloads/kbz/kbz_reporter_${{ env.version }}.apk
-            downloads/wave/wave_reporter_${{ env.version }}.apk
+            ./downloads/kbz/*
+            ./downloads/wave/*
