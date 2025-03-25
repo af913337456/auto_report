@@ -8,13 +8,23 @@ on:
 jobs:
   build-and-publish:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        bank: [kbz, wave]
+        include:
+          - bank: kbz
+            app_name: "kbz report"
+            logo: "ic_kbz_logo.png"
+          - bank: wave
+            app_name: "wave report"
+            logo: "ic_wave_logo.png"
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Java
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '17'  # 确保使用正确的 Java 版本
@@ -30,96 +40,66 @@ jobs:
 
     - name: Create key.properties
       run: |
-        echo "storePassword=${{ secrets.STOREPASSWORD }}" >> android/key.properties
-        echo "keyPassword=${{ secrets.KEYPASSWORD }}" >> android/key.properties
-        echo "keyAlias=${{ secrets.KEYALIAS }}" >> android/key.properties
-        echo "storeFile=${{ secrets.STOREFILE }}" >> android/key.properties
+        cat << EOF > android/key.properties
+        storePassword=${{ secrets.STOREPASSWORD }}
+        keyPassword=${{ secrets.KEYPASSWORD }}
+        keyAlias=${{ secrets.KEYALIAS }}
+        storeFile=${{ secrets.STOREFILE }}
+        EOF
 
-    - name: Setup bank type kbz
+    - name: Setup bank configuration
       run: |
-        sed -i "" "s/static BankType bankType = BankType.*;/static BankType bankType = BankType.kbz;/g" lib/config/global_config.dart
-        sed -i '' 's|assets/ic_logo.*.png|assets/ic_kbz_logo.png|g' pubspec.yaml
-        sed -i '' 's|applicationId = "com.example.auto_report.*"|applicationId = "com.example.auto_report.kbz"|g' android/app/build.gradle
-        sed -i '' 's|android:label=".*report.*"|android:label="kbz report"|g' android/app/src/main/AndroidManifest.xml
+        sed -i "" "s/static BankType bankType = BankType.*;/static BankType bankType = BankType.${{ matrix.bank }};/g" lib/config/global_config.dart
+        sed -i '' 's|assets/ic_.*logo.png|assets/${{ matrix.logo }}|g' pubspec.yaml
+        sed -i '' 's|applicationId = "com.example.auto_report.*"|applicationId = "com.example.auto_report.${{ matrix.bank }}"|g' android/app/build.gradle
+        sed -i '' 's|android:label=".*report.*"|android:label="${{ matrix.app_name }}"|g' android/app/src/main/AndroidManifest.xml
     
     - name: Setup Icons
       run: dart run icons_launcher:create
 
-    - name: Run tests kbz
+    - name: Run tests
       run: flutter test
-
-    - name: Build APK kbz
-      run: flutter build apk --release
-
-    - name: Rename APK kbz
-      run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/kbz_reporter.apk
-
-    # - name: Upload APK kbz
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: apk
-    #     path: build/app/outputs/flutter-apk/kbz_reporter.apk
-
-
-    - name: Setup bank type wave
-      run: |
-        sed -i "" "s/static BankType bankType = BankType.*;/static BankType bankType = BankType.wave;/g" lib/config/global_config.dart
-        sed -i '' 's|assets/ic_.*logo.png|assets/ic_wave_logo.png|g' pubspec.yaml
-        sed -i '' 's|applicationId = "com.example.auto_report.*"|applicationId = "com.example.auto_report.wave"|g' android/app/build.gradle
-        sed -i '' 's|android:label=".*report"|android:label="wave report"|g' android/app/src/main/AndroidManifest.xml
-
-    - name: Setup Icons
-      run: dart run icons_launcher:create
-
-    - name: Run tests wave
-      run: flutter test
-
-    - name: Build APK wave
-      run: flutter build apk --release
-
-    - name: Rename APK wave
-      run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/wave_reporter.apk
-
-    # - name: Upload APK wave
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: apk
-    #     path: build/app/outputs/flutter-apk/wave_reporter.apk
-
 
     - name: Extract tag version
       id: extract_version
       run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          auto report新版本发布了!
-        draft: false
-        prerelease: false
+    - name: Build APK
+      run: flutter build apk --release
 
-    - name: Upload kbz Asset
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/app/outputs/flutter-apk/kbz_reporter.apk
-        asset_name: kbz_reporter_${{ env.version }}.apk
-        asset_content_type: application/vnd.android.package-archive
-      env:
-        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+    - name: Rename APK
+      run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
 
-    - name: Upload wave Asset
-      uses: actions/upload-release-asset@v1
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/app/outputs/flutter-apk/wave_reporter.apk
-        asset_name: wave_reporter_${{ env.version }}.apk
-        asset_content_type: application/vnd.android.package-archive
-      env:
-        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        name: apk-${{ matrix.bank }}
+        path: build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
+
+  create-release:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract tag version
+        id: extract_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Download all APKs
+        uses: actions/download-artifact@v3
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          name: Release ${{ github.ref }}
+          body: |
+            auto report新版本发布了!
+            
+            包含以下版本：
+            - KBZ Reporter ${{ env.version }}
+            - Wave Reporter ${{ env.version }}
+          draft: false
+          prerelease: false
+          files: |
+            apk-kbz/kbz_reporter_${{ env.version }}.apk
+            apk-wave/wave_reporter_${{ env.version }}.apk
