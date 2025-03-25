@@ -55,7 +55,9 @@ jobs:
         sed -i '' 's|android:label=".*report.*"|android:label="${{ matrix.app_name }}"|g' android/app/src/main/AndroidManifest.xml
     
     - name: Setup Icons
-      run: dart run icons_launcher:create
+      run: |
+        flutter pub get
+        dart run icons_launcher:create
 
     - name: Run tests
       run: flutter test
