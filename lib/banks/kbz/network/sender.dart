@@ -35,6 +35,8 @@ class Sender {
 
   bool invalid = false;
 
+  int timeDiff = 0;
+
   Sender({
     required this.aesKey,
     required this.ivKey,
@@ -73,7 +75,8 @@ class Sender {
   Future post(
       {required Map<String, dynamic> body,
       required Map<String, String> header}) async {
-    final timestamp = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
+    final timestamp =
+        '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
     final url = Uri.https(Config.host, 'api/interface/version1.1/customer');
     final encryptKey = RSAHelper.encrypt(aesKey, Config.rsaPublicKey);
     final encryptIV = RSAHelper.encrypt(ivKey, Config.rsaPublicKey);
@@ -118,7 +121,8 @@ class Sender {
   }
 
   Map<String, dynamic> getBodyTemplate1() {
-    final timestamp = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
+    final timestamp =
+        '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
     return {
       'deviceID': deviceId,
       'encoding': 'unicode',
@@ -135,14 +139,15 @@ class Sender {
     required String commondid,
     required Map<dynamic, dynamic> body,
   }) {
-    final timestamp = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
+    final timestamp =
+        '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
     return {
       'Request': {
         'Header': {
           "CommandID": commondid,
           "ClientType": Config.osType,
           "Language": Config.language,
-          "Version": Config.versioncode,
+          "Version": Config.appversion,
           "OriginatorConversationID": const Uuid().v4(),
           "DeviceID": deviceId,
           "Token": token,
@@ -164,7 +169,8 @@ class Sender {
     try {
       logger.i('start geust login');
 
-      final timestamp = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
+      final timestamp =
+          '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
       final response = await post(
         body: {
           'commandId': 'GuestLogin',
@@ -254,6 +260,11 @@ class Sender {
         final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
         logger.i('decrypt body: $decryptBody');
         final responseData = GeneralResqonse.fromJson(jsonDecode(decryptBody));
+        final timestamp = DateTime.now().toUtc().millisecondsSinceEpoch;
+        timeDiff =
+            responseData.Response!.Body!.ResponseDetail!.ServerTimestamp! -
+                timestamp;
+        logger.i('timeDiff: $timeDiff');
         return responseData.Response?.Body?.ResponseCode == '0';
       }
 
@@ -337,7 +348,7 @@ class Sender {
   }
 
   Future<Tuple3<bool, String, VerifyPinResqonse?>> verifyPin(
-      String phoneNumber, String businessUniqueId, pin) async {
+      String phoneNumber, String businessUniqueId, String pin) async {
     try {
       logger.i(
           'start verify pin: $phoneNumber, business uniqueId: $businessUniqueId, pin: $pin');
@@ -352,6 +363,55 @@ class Sender {
             'businessUniqueId': businessUniqueId,
             'initiatorMSISDN': phoneNumber,
             'initiatorPin': encryptPin,
+          }),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0' &&
+            responseData.isCorrect == "true";
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, VerifyPinResqonse?>> verifyQRCode(
+      String phoneNumber, String serialNo, String businessUniqueId) async {
+    try {
+      logger.i(
+          'start get qrcode, phoneNumber: $phoneNumber, serialNo: $serialNo, business uniqueId: $businessUniqueId');
+
+      final response = await post(
+        body: getBodyTemplate1()
+          ..addAll({
+            'commandId': 'RiskGetVerifyQRCodes',
+            'businessUniqueId': businessUniqueId,
+            'initiatorMSISDN': phoneNumber,
+            'serialNo': serialNo,
           }),
         header: {
           'User-Agent': 'okhttp/4.10.0',

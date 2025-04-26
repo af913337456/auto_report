@@ -212,11 +212,17 @@ class _AuthPageState extends State<AuthPage> {
         var res1 = ret.item4;
 
         if (res != null) {
-          final ret1 =
-              await _sender.verifyPin(phoneNumber, res.businessUniqueId!, _pin);
+          final ret1 = await _sender.verifyPin(
+              phoneNumber, res.businessUniqueId!, _pin!);
           logger.i('verify pin ret: ${ret1.item1}');
-
           if (!ret1.item1) return;
+
+          {
+            final ret1 = await _sender.verifyQRCode(
+                phoneNumber, '', res.businessUniqueId!);
+            logger.i('verify qrcode ret: ${ret1.item1}');
+            if (!ret1.item1) return;
+          }
 
           final ret2 = await _sender.loginMsg1(
               phoneNumber, otpCode, res.businessUniqueId!);
@@ -459,11 +465,13 @@ class _AuthPageState extends State<AuthPage> {
                 const Spacer(),
                 OutlinedButton(
                   onPressed: _hasLogin ? null : _login,
+                  // onPressed: _login,
                   child: Text(_hasLogin ? 'logined kbz' : 'login kbz'),
                 ),
                 const Padding(padding: EdgeInsets.only(left: 15, right: 15)),
                 OutlinedButton(
                   onPressed: _hasAuth ? null : _auth,
+                  // onPressed: _auth,
                   child: Text(_hasAuth ? 'login report' : 'login report'),
                 ),
                 const Spacer(),
