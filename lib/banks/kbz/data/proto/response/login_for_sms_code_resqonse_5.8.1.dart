@@ -23,6 +23,7 @@ class LoginForSmsCodeResqonse {
   String? responseDesc;
   int? serverTimestamp;
   String? isReCheckFlag;
+  String? token;
 
   LoginForSmsCodeResqonse({
     this.businessUniqueId,
@@ -33,6 +34,7 @@ class LoginForSmsCodeResqonse {
     this.responseDesc,
     this.serverTimestamp,
     this.isReCheckFlag,
+    this.token,
   });
   LoginForSmsCodeResqonse.fromJson(Map<String, dynamic> json) {
     businessUniqueId = json['businessUniqueId']?.toString();
@@ -43,6 +45,7 @@ class LoginForSmsCodeResqonse {
     responseDesc = json['responseDesc']?.toString();
     serverTimestamp = json['serverTimestamp']?.toInt();
     isReCheckFlag = json['isReCheckFlag']?.toString();
+    token = json['token']?.toString();
   }
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
@@ -54,6 +57,7 @@ class LoginForSmsCodeResqonse {
     data['responseDesc'] = responseDesc;
     data['serverTimestamp'] = serverTimestamp;
     data['isReCheckFlag'] = isReCheckFlag;
+    data['token'] = token;
     return data;
   }
 }

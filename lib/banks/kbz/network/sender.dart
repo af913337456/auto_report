@@ -11,6 +11,7 @@ import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_res
 import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/query_customer_balance_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/verify_pin_resqonse.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/verify_qr_code_resqonse.dart';
 import 'package:auto_report/banks/kbz/utils/aes_helper.dart';
 import 'package:auto_report/banks/kbz/utils/sha_helper.dart';
 import 'package:auto_report/model/data/log/log_item.dart';
@@ -125,6 +126,7 @@ class Sender {
         '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
     return {
       'deviceID': deviceId,
+      'DeviceToken': '',
       'encoding': 'unicode',
       'language': Config.language,
       'originatorConversationID': const Uuid().v4(),
@@ -328,6 +330,10 @@ class Sender {
         // if (ret) {
         //   fullName = responseData.userInfo?.fullName ?? '';
         // }
+        if (responseData.token?.isNotEmpty ?? false) {
+          logger.i('new token: $token');
+          token = responseData.token!;
+        }
         if (responseData.businessUniqueId?.isNotEmpty ?? false) {
           return Tuple4(
               ret, responseData.responseDesc ?? '', responseData, null);
@@ -399,7 +405,7 @@ class Sender {
     }
   }
 
-  Future<Tuple3<bool, String, VerifyPinResqonse?>> verifyQRCode(
+  Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> verifyQRCode(
       String phoneNumber, String serialNo, String businessUniqueId) async {
     try {
       logger.i(
@@ -433,9 +439,105 @@ class Sender {
         final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
         logger.i('decrypt body: $decryptBody');
         final responseData =
-            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
-        final ret = responseData.responseCode == '0' &&
-            responseData.isCorrect == "true";
+            VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0';
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> finishQRCode(
+      String phoneNumber, String serialNo, String businessUniqueId) async {
+    try {
+      logger.i(
+          'finish qrcode, phoneNumber: $phoneNumber, serialNo: $serialNo, business uniqueId: $businessUniqueId');
+
+      final response = await post(
+        body: getBodyTemplate1()
+          ..addAll({
+            'commandId': 'RiskFinishVerifyQRCode',
+            'businessUniqueId': businessUniqueId,
+            'initiatorMSISDN': phoneNumber,
+            'serialNo': serialNo,
+          }),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0';
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> verifyNrc(
+      String phoneNumber, String businessUniqueId, String idNumber) async {
+    try {
+      logger.i(
+          'verify nrc, phoneNumber: $phoneNumber, idNumber: $idNumber, business uniqueId: $businessUniqueId');
+
+      final response = await post(
+        body: getBodyTemplate1()
+          ..addAll({
+            'commandId': 'RiskControlCheckVerifyNrc',
+            'businessUniqueId': businessUniqueId,
+            'initiatorMSISDN': phoneNumber,
+            'idNumber': idNumber,
+            'idType': 'Nrc',
+          }),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0';
         return Tuple3(ret, responseData.responseDesc ?? '', responseData);
       }
 
@@ -630,6 +732,112 @@ class Sender {
       final response = await post(
         body: getBodyTemplateContainsHeaders(
           commondid: 'QueryCustomerBalance',
+          body: {
+            'RequestDetail': {
+              'Encoding': 'unicode',
+              'QueryBalanceFlag': 'false',
+              'isLiveDb': false,
+            },
+            'Identity': {
+              'Initiator': {
+                'Identifier': phoneNumber,
+                'IdentifierType': '1',
+              },
+              'ReceiverParty': {
+                'Identifier': phoneNumber,
+                'IdentifierType': '1',
+              },
+            }
+          },
+        ),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('query customer balance timeout');
+        logger.i('query customer balance timeout');
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance timeout.',
+        ));
+        return null;
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+
+        final responseData =
+            QueryCustomerBalanceResqonse.fromJson(jsonDecode(decryptBody));
+        if (responseData.Response!.Body!.ResponseCode == '0') {
+          return double.parse(
+              responseData.Response!.Body!.ResponseDetail!.Balance!);
+        }
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance err, err: $e, response decrypt: $decryptBody',
+        ));
+        return null;
+      } else {
+        final responseData = ErrResponse.fromJson(jsonDecode(response.body));
+        final code = responseData.Response!.Body!.ResponseCode;
+        if (code == 'AS403' || code == 'AS402') {
+          invalid = true;
+        }
+
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance err, err: $e, response: ${response.body}',
+        ));
+      }
+
+      // EasyLoading.showInfo('request otp success.');
+      // logger.i('request otp success');
+    } catch (e, stackTrace) {
+      logger.e('query customer balance err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('query customer balance err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      onLogged?.call(LogItem(
+        type: LogItemType.err,
+        platformName: account?.platformName ?? '',
+        platformKey: account?.platformKey ?? '',
+        phone: phoneNumber,
+        time: DateTime.now(),
+        content: 'query balance err, err: $e, stack: $stackTrace',
+      ));
+    }
+    return null;
+  }
+
+  Future<double?> pgWGetAccessToken(
+    String phoneNumber, {
+    ValueChanged<LogItem>? onLogged,
+    AccountData? account,
+  }) async {
+    try {
+      logger.i('start query customer balance: $phoneNumber');
+
+      final response = await post(
+        body: getBodyTemplateContainsHeaders(
+          commondid: 'PGWGetAccessToken',
           body: {
             'RequestDetail': {
               'Encoding': 'unicode',

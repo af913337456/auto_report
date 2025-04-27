@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:auto_report/banks/kbz/config/config.dart';
 import 'package:auto_report/banks/kbz/data/account/account_data.dart';
 import 'package:auto_report/banks/kbz/network/sender.dart';
+import 'package:auto_report/banks/kbz/pages/qr_data.dart';
 import 'package:auto_report/banks/kbz/utils/aes_key_generator.dart';
 import 'package:auto_report/proto/report/response/get_platforms_response.dart';
 import 'package:auto_report/proto/report/response/general_response.dart';
@@ -13,6 +14,8 @@ import 'package:auto_report/widges/platform_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class AuthPage extends StatefulWidget {
@@ -45,6 +48,22 @@ class _AuthPageState extends State<AuthPage> {
 
   String? _token;
   String? _remark;
+
+  List<QrData> qrData = [
+    // QrData(
+    //   qrCode:
+    //       'KBZPayRQR01GTE5wZTRFeVVuTFpaeUpWX0dYV3Y2NHJzZDVTX1B5UWFoaXp2MUtIekNp',
+    //   validateTime: 1745671774150,
+    //   expiredTime: 1745671834150,
+    // ),
+    // QrData(
+    //   qrCode:
+    //       'KBZPayRQR01ETE5wZTRFeVVuTFpaeUpWX0dYV3Y2NHJzZDVTX1B5UWFoaTRqWGlJVnZY',
+    //   validateTime: 1745671834150,
+    //   expiredTime: 1745671894150,
+    // ),
+  ];
+  int qrIndex = 0;
 
   GetPlatformsResponseData? _platformsResponseData;
 
@@ -192,11 +211,13 @@ class _AuthPageState extends State<AuthPage> {
     return true;
   }
 
-  void _login() async {
+  String qrSerialNo = '';
+  String businessUniqueId = '';
+  void _questQrCode() async {
     if (!_checkInput()) return;
 
     final phoneNumber = _phoneNumber!;
-    final id = _id!;
+    // final id = _id!;
     final otpCode = _otpCode!;
 
     EasyLoading.show(status: 'loading...');
@@ -209,9 +230,9 @@ class _AuthPageState extends State<AuthPage> {
           return;
         }
         final res = ret.item3;
-        var res1 = ret.item4;
 
         if (res != null) {
+          businessUniqueId = res.businessUniqueId!;
           final ret1 = await _sender.verifyPin(
               phoneNumber, res.businessUniqueId!, _pin!);
           logger.i('verify pin ret: ${ret1.item1}');
@@ -222,54 +243,139 @@ class _AuthPageState extends State<AuthPage> {
                 phoneNumber, '', res.businessUniqueId!);
             logger.i('verify qrcode ret: ${ret1.item1}');
             if (!ret1.item1) return;
-          }
 
-          final ret2 = await _sender.loginMsg1(
-              phoneNumber, otpCode, res.businessUniqueId!);
-          if (!ret2.item1) {
-            EasyLoading.showToast('login fail 1.msg: ${ret.item2}');
-            logger.i('login fail 1.msg: ${ret.item2}');
+            final qrCodes = ret1.item3!.qrCodes;
+            setState(() {
+              List<QrData> qrs = [];
+              for (var qr in qrCodes!) {
+                qrs.add(
+                  QrData(
+                    qrCode: qr!.qrCode!,
+                    validateTime: qr.validateTime!,
+                    expiredTime: qr.expiredTime!,
+                  ),
+                );
+              }
+              qrData = qrs;
+              qrIndex = 0;
+            });
+            qrSerialNo = ret1.item3!.serialNo!;
+          }
+        }
+      }
+      // setState(() => _hasLogin = true);
+    } catch (e, stackTrace) {
+      logger.e('err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('request err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return;
+    } finally {
+      EasyLoading.dismiss();
+    }
+  }
+
+  void _login() async {
+    if (!_checkInput()) return;
+
+    final phoneNumber = _phoneNumber!;
+    // final id = _id!;
+    final otpCode = _otpCode!;
+
+    EasyLoading.show(status: 'loading...');
+    try {
+      {
+        {
+          final ret1 = await _sender.finishQRCode(
+              phoneNumber, qrSerialNo, businessUniqueId);
+          logger.i('finish qrcode ret: ${ret1.item1}');
+          if (!ret1.item1) return;
+        }
+
+        {
+          final ret =
+              await _sender.loginMsg(phoneNumber, otpCode, businessUniqueId);
+          if (!ret.item1) {
+            EasyLoading.showToast('login fail.msg: ${ret.item2}');
+            logger.i('login fail.msg: ${ret.item2}');
             return;
           }
-          res1 = ret2.item3!;
         }
+
+        // {
+        //   final ret1 =
+        //       await _sender.verifyNrc(phoneNumber, businessUniqueId, id);
+        //   logger.i('verify nrc ret: ${ret1.item1}');
+        //   if (!ret1.item1) return;
+        // }
 
         // 验证身份证
-        {
-          final ret = await _sender.identityVerificationMsg(phoneNumber, id);
-          if (!ret) {
-            EasyLoading.showToast('identity verification fail.');
-            logger.i('identity verification fail.');
-            return;
-          }
-        }
+        // {
+        //   final ret = await _sender.identityVerificationMsg(phoneNumber, id);
+        //   if (!ret) {
+        //     EasyLoading.showToast('identity verification fail.');
+        //     logger.i('identity verification fail.');
+        //     return;
+        //   }
+        // }
+
+        // 新设备登录
+        // {
+        //   final ret = await _sender.newAutoLoginMsg(
+        //       phoneNumber, businessUniqueId, false);
+        //   if (!ret) {
+        //     EasyLoading.showToast('new login fail.');
+        //     logger.i('new login fail.');
+        //     return;
+        //   }
+        // }
+
+        // {
+        //   final ret2 =
+        //       await _sender.loginMsg1(phoneNumber, otpCode, businessUniqueId);
+        //   if (!ret2.item1) {
+        //     EasyLoading.showToast('login fail 1.');
+        //     logger.i('login fail 1.');
+        //     return;
+        //   }
+        //   // res1 = ret2.item3!;
+        // }
+
+        // 验证身份证
+        // {
+        //   final ret = await _sender.identityVerificationMsg(phoneNumber, id);
+        //   if (!ret) {
+        //     EasyLoading.showToast('identity verification fail.');
+        //     logger.i('identity verification fail.');
+        //     return;
+        //   }
+        // }
 
         // final ret2 = await _sender.newAutoLoginMsg(
         //     phoneNumber, res.businessUniqueId!, false);
-        if (res1?.nrcVerifyEnable == '1') {
-          // 新设备
-          _sender.token = res1?.userInfo!.token;
+        // if (res1?.nrcVerifyEnable == '1') {
+        //   // 新设备
+        //   _sender.token = res1?.userInfo!.token;
 
-          // 验证身份证
-          {
-            final ret = await _sender.identityVerificationMsg(phoneNumber, id);
-            if (!ret) {
-              EasyLoading.showToast('identity verification fail.');
-              logger.i('identity verification fail.');
-              return;
-            }
-          }
+        //   // 验证身份证
+        //   {
+        //     final ret = await _sender.identityVerificationMsg(phoneNumber, id);
+        //     if (!ret) {
+        //       EasyLoading.showToast('identity verification fail.');
+        //       logger.i('identity verification fail.');
+        //       return;
+        //     }
+        //   }
 
-          // // 新设备登录
-          // {
-          //   final ret = await _sender.newAutoLoginMsg(phoneNumber, false);
-          //   if (!ret) {
-          //     EasyLoading.showToast('new login fail.');
-          //     logger.i('new login fail.');
-          //     return;
-          //   }
-          // }
-        }
+        //   // // 新设备登录
+        //   // {
+        //   //   final ret = await _sender.newAutoLoginMsg(phoneNumber, false);
+        //   //   if (!ret) {
+        //   //     EasyLoading.showToast('new login fail.');
+        //   //     logger.i('new login fail.');
+        //   //     return;
+        //   //   }
+        //   // }
+        // }
 
         // // 获取余额
         // {
@@ -388,6 +494,25 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
+  getQrTimeInfo() {
+    if (qrData.isEmpty || qrIndex >= qrData.length) return '';
+
+    final data = qrData[qrIndex];
+
+    final utcDateTime1 =
+        DateTime.fromMillisecondsSinceEpoch(data.validateTime, isUtc: true);
+    final localDateTime1 = utcDateTime1.toLocal();
+    final utcDateTime2 =
+        DateTime.fromMillisecondsSinceEpoch(data.expiredTime, isUtc: true);
+    final localDateTime2 = utcDateTime2.toLocal();
+
+    final format = DateFormat('yyyy-MM-dd HH:mm:ss');
+    final formatted1 = format.format(localDateTime1);
+    final formatted2 = format.format(localDateTime2);
+
+    return '$formatted1 - $formatted2';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -459,10 +584,50 @@ class _AuthPageState extends State<AuthPage> {
                 decoration: _buildInputDecoration("remark", Icons.tag),
               ),
             ),
+            Visibility(
+              visible: qrData.isNotEmpty,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: qrIndex == 0
+                              ? null
+                              : () => setState(() => --qrIndex),
+                          child: const Text('Prev'),
+                        ),
+                        const Spacer(),
+                        QrImageView(
+                          data: qrData.isEmpty ? '' : qrData[qrIndex].qrCode,
+                          version: QrVersions.auto,
+                          size: 200.0,
+                        ),
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: qrIndex >= qrData.length - 1
+                              ? null
+                              : () => setState(() => ++qrIndex),
+                          child: const Text('Next'),
+                        ),
+                      ],
+                    ),
+                    Text(getQrTimeInfo()),
+                  ],
+                ),
+              ),
+            ),
             const Padding(padding: EdgeInsets.only(bottom: 15)),
             Row(
               children: [
                 const Spacer(),
+                OutlinedButton(
+                  onPressed: _questQrCode,
+                  // onPressed: _login,
+                  child: const Text('request qr code'),
+                ),
+                const Padding(padding: EdgeInsets.only(left: 15, right: 15)),
                 OutlinedButton(
                   onPressed: _hasLogin ? null : _login,
                   // onPressed: _login,
