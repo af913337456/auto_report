@@ -453,7 +453,7 @@ class Sender {
     }
   }
 
-  Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> finishQRCode(
+  Future<Tuple3<bool, String, VerifyPinResqonse?>> finishQRCode(
       String phoneNumber, String serialNo, String businessUniqueId) async {
     try {
       logger.i(
@@ -487,7 +487,7 @@ class Sender {
         final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
         logger.i('decrypt body: $decryptBody');
         final responseData =
-            VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
+            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
         return Tuple3(ret, responseData.responseDesc ?? '', responseData);
       }

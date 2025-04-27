@@ -278,16 +278,27 @@ class _AuthPageState extends State<AuthPage> {
     if (!_checkInput()) return;
 
     final phoneNumber = _phoneNumber!;
-    // final id = _id!;
+    final id = _id!;
     final otpCode = _otpCode!;
 
     EasyLoading.show(status: 'loading...');
     try {
       {
+        var needVerifyNrc = false;
         {
           final ret1 = await _sender.finishQRCode(
               phoneNumber, qrSerialNo, businessUniqueId);
           logger.i('finish qrcode ret: ${ret1.item1}');
+
+          needVerifyNrc = ret1.item3?.nextVerifyType == 'NRC';
+
+          if (!ret1.item1) return;
+        }
+
+        if (needVerifyNrc) {
+          final ret1 =
+              await _sender.verifyNrc(phoneNumber, businessUniqueId, id);
+          logger.i('verify nrc ret: ${ret1.item1}');
           if (!ret1.item1) return;
         }
 
