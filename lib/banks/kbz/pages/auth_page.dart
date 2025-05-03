@@ -217,12 +217,14 @@ class _AuthPageState extends State<AuthPage> {
     if (!_checkInput()) return;
 
     final phoneNumber = _phoneNumber!;
-    // final id = _id!;
+    final id = _id!;
     final otpCode = _otpCode!;
 
     EasyLoading.show(status: 'loading...');
     try {
       {
+        await _sender.queryLoginMode(phoneNumber);
+
         final ret = await _sender.loginMsg(phoneNumber, otpCode, null);
         if (!ret.item1) {
           EasyLoading.showToast('login fail.msg: ${ret.item2}');
@@ -237,6 +239,49 @@ class _AuthPageState extends State<AuthPage> {
               phoneNumber, res.businessUniqueId!, _pin!);
           logger.i('verify pin ret: ${ret1.item1}');
           if (!ret1.item1) return;
+
+          if (ret1.item3?.nextVerifyType == 'NRC') {
+            final ret1 =
+                await _sender.verifyNrc(phoneNumber, businessUniqueId, id);
+            logger.i('verify nrc ret: ${ret1.item1}');
+            if (!ret1.item1) return;
+          }
+
+          if (ret1.item3?.isFinish == 'true') {
+            // pass qr verify.
+            {
+              final ret = await _sender.loginMsg(
+                  phoneNumber, otpCode, businessUniqueId);
+              if (!ret.item1) {
+                EasyLoading.showToast('login fail.msg: ${ret.item2}');
+                logger.i('login fail.msg: ${ret.item2}');
+                return;
+              }
+            }
+
+            // 验证身份证
+            {
+              final ret =
+                  await _sender.identityVerificationMsg(phoneNumber, id);
+              if (!ret) {
+                EasyLoading.showToast('identity verification fail.');
+                logger.i('identity verification fail.');
+                return;
+              }
+            }
+
+            // await _sender.pgWGetAccessToken1(phoneNumber);
+            // await _sender.pgWGetAccessToken1(phoneNumber);
+            // {
+            //   final ret1 =
+            //       await _sender.verifyNrc(phoneNumber, businessUniqueId, id);
+            //   logger.i('verify nrc ret: ${ret1.item1}');
+            //   if (!ret1.item1) return;
+            // }
+
+            setState(() => _hasLogin = true);
+            return;
+          }
 
           {
             final ret1 = await _sender.verifyQRCode(

@@ -8,6 +8,8 @@ import 'package:auto_report/banks/kbz/data/proto/response/general_resqonse.dart'
 import 'package:auto_report/banks/kbz/data/proto/response/guest_login_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse1.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse_5.8.1.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse.dart'
+    as LoginForSmsCodeResqonseOldVersion;
 import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/query_customer_balance_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/verify_pin_resqonse.dart';
@@ -113,11 +115,12 @@ class Sender {
         'brand': 'google',
         'deviceModel': model,
         'deviceToken': '',
-        'miPushRegisterId': miPush,
+        // 'miPushRegisterId': miPush,
+        'miPushRegisterId': '',
         'networkMode': 'wifi',
         'osVersion': 'Android11',
         'resolution': '2160x1080',
-        'supportGoogleService': 'true',
+        'supportGoogleService': 'false',
       });
   }
 
@@ -126,7 +129,7 @@ class Sender {
         '${DateTime.now().toUtc().millisecondsSinceEpoch + timeDiff}';
     return {
       'deviceID': deviceId,
-      'DeviceToken': '',
+      // 'DeviceToken': '',
       'encoding': 'unicode',
       'language': Config.language,
       'originatorConversationID': const Uuid().v4(),
@@ -331,8 +334,17 @@ class Sender {
         //   fullName = responseData.userInfo?.fullName ?? '';
         // }
         if (responseData.token?.isNotEmpty ?? false) {
-          logger.i('new token: $token');
+          logger.i('old token: $token');
           token = responseData.token!;
+          logger.i('new token: $token');
+        } else {
+          final responseData1 = LoginForSmsCodeResqonseOldVersion
+              .LoginForSmsCodeResqonse.fromJson(jsonDecode(decryptBody));
+          if (responseData1.userInfo?.token?.isNotEmpty ?? false) {
+            logger.i('old token1: $token');
+            token = responseData1.userInfo?.token!;
+            logger.i('new token1: $token');
+          }
         }
         if (responseData.businessUniqueId?.isNotEmpty ?? false) {
           return Tuple4(
@@ -539,6 +551,49 @@ class Sender {
             VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
         return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
+  Future<Tuple3<bool, String, LoginForSmsCodeResqonse1?>> queryLoginMode(
+      String phoneNumber) async {
+    try {
+      logger.i('start queryLoginMode.phone number: $phoneNumber');
+      final body = getBodyTemplate()
+        ..addAll({
+          'commandId': 'QueryLoginMode',
+          'initiatorMSISDN': phoneNumber,
+        });
+
+      final response = await post(
+        body: body,
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        return const Tuple3(true, '', null);
       }
 
       return Tuple3(false, response.body, null);
@@ -851,6 +906,111 @@ class Sender {
               },
               'ReceiverParty': {
                 'Identifier': phoneNumber,
+                'IdentifierType': '1',
+              },
+            }
+          },
+        ),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('query customer balance timeout');
+        logger.i('query customer balance timeout');
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance timeout.',
+        ));
+        return null;
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+
+        final responseData =
+            QueryCustomerBalanceResqonse.fromJson(jsonDecode(decryptBody));
+        if (responseData.Response!.Body!.ResponseCode == '0') {
+          return double.parse(
+              responseData.Response!.Body!.ResponseDetail!.Balance!);
+        }
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance err, err: $e, response decrypt: $decryptBody',
+        ));
+        return null;
+      } else {
+        final responseData = ErrResponse.fromJson(jsonDecode(response.body));
+        final code = responseData.Response!.Body!.ResponseCode;
+        if (code == 'AS403' || code == 'AS402') {
+          invalid = true;
+        }
+
+        onLogged?.call(LogItem(
+          type: LogItemType.err,
+          platformName: account?.platformName ?? '',
+          platformKey: account?.platformKey ?? '',
+          phone: phoneNumber,
+          time: DateTime.now(),
+          content: 'query balance err, err: $e, response: ${response.body}',
+        ));
+      }
+
+      // EasyLoading.showInfo('request otp success.');
+      // logger.i('request otp success');
+    } catch (e, stackTrace) {
+      logger.e('query customer balance err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('query customer balance err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      onLogged?.call(LogItem(
+        type: LogItemType.err,
+        platformName: account?.platformName ?? '',
+        platformKey: account?.platformKey ?? '',
+        phone: phoneNumber,
+        time: DateTime.now(),
+        content: 'query balance err, err: $e, stack: $stackTrace',
+      ));
+    }
+    return null;
+  }
+
+  Future<double?> pgWGetAccessToken1(
+    String phoneNumber, {
+    ValueChanged<LogItem>? onLogged,
+    AccountData? account,
+  }) async {
+    try {
+      logger.i('start query customer balance: $phoneNumber');
+
+      final response = await post(
+        body: getBodyTemplateContainsHeaders(
+          commondid: 'PGWGetAccessToken',
+          body: {
+            'RequestDetail': {
+              'Merch_APPID': 'kpbe8dec8eb6e04bc19fbb5974fb32c0',
+              'TradeType': 'APPH5',
+              'IsGuest': "false",
+            },
+            'Identity': {
+              'Initiator': {
+                'Identifier': phoneNumber,
+                'IdentifierType': '1',
+              },
+              'ReceiverParty': {
                 'IdentifierType': '1',
               },
             }
