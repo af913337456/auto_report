@@ -9,7 +9,7 @@ import 'package:auto_report/banks/kbz/data/proto/response/guest_login_resqonse.d
 import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse1.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse_5.8.1.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_resqonse.dart'
-    as LoginForSmsCodeResqonseOldVersion;
+    as login_for_smscode_resqonse_old_version;
 import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/query_customer_balance_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/verify_pin_resqonse.dart';
@@ -338,7 +338,7 @@ class Sender {
           token = responseData.token!;
           logger.i('new token: $token');
         } else {
-          final responseData1 = LoginForSmsCodeResqonseOldVersion
+          final responseData1 = login_for_smscode_resqonse_old_version
               .LoginForSmsCodeResqonse.fromJson(jsonDecode(decryptBody));
           if (responseData1.userInfo?.token?.isNotEmpty ?? false) {
             logger.i('old token1: $token');
