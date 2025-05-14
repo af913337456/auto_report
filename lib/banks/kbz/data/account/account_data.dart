@@ -178,7 +178,7 @@ class AccountData implements Account {
     ValueChanged<LogItem> onLogged,
   ) async {
     try {
-      const recordCount = 10;
+      const recordCount = 30;
       final isFirst = _lasttransDate == null;
       final lastTime = _lasttransDate ?? 0;
       final records = await sender.newTransRecordListMsg(
@@ -329,7 +329,7 @@ class AccountData implements Account {
 
     while (
         !isWmtMfsInvalid && await getOrders(waitReportList, offset, onLogged)) {
-      offset += 6;
+      offset += 25;
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
@@ -338,7 +338,10 @@ class AccountData implements Account {
     final isFirst = _lasttransDate == null;
     if (isFirst) {
       if (waitReportList.isEmpty) {
-        _lasttransDate = 0;
+        _lasttransDate = DateTime.now()
+            .subtract(const Duration(seconds: 30))
+            .millisecondsSinceEpoch;
+        ;
         _lastTransId = '-1';
       } else {
         final cell = waitReportList.last;
