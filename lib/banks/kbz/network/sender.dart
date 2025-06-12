@@ -513,7 +513,7 @@ class Sender {
     }
   }
 
-  Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> verifyNrc(
+  Future<Tuple3<bool, String, VerifyPinResqonse?>> verifyNrc(
       String phoneNumber, String businessUniqueId, String idNumber) async {
     try {
       logger.i(
@@ -526,7 +526,8 @@ class Sender {
             'businessUniqueId': businessUniqueId,
             'initiatorMSISDN': phoneNumber,
             'idNumber': idNumber,
-            'idType': 'Nrc',
+            // 'idType': 'Nrc',
+            'idType': '01',
           }),
         header: {
           'User-Agent': 'okhttp/4.10.0',
@@ -548,7 +549,7 @@ class Sender {
         final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
         logger.i('decrypt body: $decryptBody');
         final responseData =
-            VerifyQrCodeResqonse.fromJson(jsonDecode(decryptBody));
+            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
         return Tuple3(ret, responseData.responseDesc ?? '', responseData);
       }

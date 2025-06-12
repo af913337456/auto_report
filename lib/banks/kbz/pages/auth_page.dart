@@ -240,14 +240,20 @@ class _AuthPageState extends State<AuthPage> {
           logger.i('verify pin ret: ${ret1.item1}');
           if (!ret1.item1) return;
 
+          var isFinish = ret1.item3?.isFinish == 'true';
+          logger.i('is finish: $isFinish');
+
           if (ret1.item3?.nextVerifyType == 'NRC') {
             final ret1 =
                 await _sender.verifyNrc(phoneNumber, businessUniqueId, id);
             logger.i('verify nrc ret: ${ret1.item1}');
             if (!ret1.item1) return;
+
+            isFinish = ret1.item3?.isFinish == 'true';
+            logger.i('is finish: $isFinish');
           }
 
-          if (ret1.item3?.isFinish == 'true') {
+          if (isFinish) {
             // pass qr verify.
             {
               final ret = await _sender.loginMsg(
