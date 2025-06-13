@@ -217,7 +217,7 @@ class _AuthPageState extends State<AuthPage> {
     if (!_checkInput()) return;
 
     final phoneNumber = _phoneNumber!;
-    final id = _id!;
+    final id = _id!.toUpperCase();
     final otpCode = _otpCode!;
 
     EasyLoading.show(status: 'loading...');
@@ -329,7 +329,7 @@ class _AuthPageState extends State<AuthPage> {
     if (!_checkInput()) return;
 
     final phoneNumber = _phoneNumber!;
-    final id = _id!;
+    final id = _id!.toUpperCase();
     final otpCode = _otpCode!;
 
     EasyLoading.show(status: 'loading...');
