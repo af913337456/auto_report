@@ -11,12 +11,12 @@ class DataManager {
   static final DataManager _singleton = DataManager._internal();
 
   static const orderRefreshTimeRange = RangeValues(50, 120);
-  static const gettingCashListRefreshTimeRange = RangeValues(10, 60);
-  static const rechargeTransferRefreshTimeRange = RangeValues(10, 60);
+  static const gettingCashListRefreshTimeRange = RangeValues(30, 120);
+  static const rechargeTransferRefreshTimeRange = RangeValues(30, 120);
 
   double orderRefreshTime = 60;
-  double gettingCashListRefreshTime = 15;
-  double rechargeTransferRefreshTime = 30;
+  double gettingCashListRefreshTime = 60;
+  double rechargeTransferRefreshTime = 60;
 
   bool devMode = false;
   bool isDark = false;
