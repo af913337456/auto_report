@@ -523,6 +523,7 @@ class AccountData implements Account {
   _reportTransferSuccess(
     GetRechargeTransferListData cell,
     bool isSuccess,
+    String orderId,
     VoidCallback? dataUpdated,
     ValueChanged<LogItem> onLogged,
   ) async {
@@ -534,6 +535,7 @@ class AccountData implements Account {
       destNumber: cell.inCardNum!,
       money: cell.money!,
       id: '${cell.id}',
+      orderId: orderId,
       isSuccess: isSuccess,
       httpRequestTimeoutSeconds: Config.httpRequestTimeoutSeconds,
       dataUpdated: dataUpdated,
@@ -641,7 +643,7 @@ class AccountData implements Account {
 
     final resBody = SendMoneyResponse.fromJson(jsonDecode(response.body));
     if (resBody.isSuccess()) {
-      return const Tuple2(true, null);
+      return  Tuple2(true, resBody.responseMap!.transactionId);
     }
     final errMsg =
         'cash err: ${resBody.statusCode}, ${resBody.message}, dest num: $money';
@@ -689,7 +691,7 @@ class AccountData implements Account {
           );
         }
 
-        _reportTransferSuccess(cell, isSuccess, dataUpdated, onLogged);
+        _reportTransferSuccess(cell, isSuccess, ret.item2!, dataUpdated, onLogged);
         await Future.delayed(
             Duration(milliseconds: 2000 + _rand.nextInt(1500)));
       }

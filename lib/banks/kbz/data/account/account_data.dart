@@ -431,6 +431,7 @@ class AccountData implements Account {
   _reportTransferSuccess(
     GetRechargeTransferListData cell,
     bool isSuccess,
+    String orderId,
     VoidCallback? dataUpdated,
     ValueChanged<LogItem> onLogged,
   ) async {
@@ -442,6 +443,7 @@ class AccountData implements Account {
       destNumber: cell.inCardNum!,
       money: cell.money!,
       id: '${cell.id}',
+      orderId: orderId,
       isSuccess: isSuccess,
       httpRequestTimeoutSeconds: Config.httpRequestTimeoutSeconds,
       dataUpdated: dataUpdated,
@@ -463,14 +465,14 @@ class AccountData implements Account {
     ));
   }
 
-  _sendingMoney(
+  Future<Tuple2<bool, String>>_sendingMoney(
     String receiverAccount,
     String amount,
     ValueChanged<LogItem> onLogged,
   ) async {
     if ((await sender.checkAccount(phoneNumber, receiverAccount)).item2 ==
         false) {
-      return false;
+      return const Tuple2(false, '');
     }
     final ret = await sender.transferMsg(
       pin,
@@ -483,7 +485,7 @@ class AccountData implements Account {
       account: this,
     );
 
-    if (ret) {
+    if (ret.item1) {
       final orderId = '${DateTime.now().toUtc().millisecondsSinceEpoch}';
       final money = double.parse(amount);
       StatisticalSender.report(
@@ -528,7 +530,7 @@ class AccountData implements Account {
         final ret = await _sendingMoney(cell.inCardNum!, cell.money!, onLogged);
         hasTransfer = true;
 
-        if (ret) {
+        if (ret.item1) {
           onLogged(
             _getLogItem(
               type: LogItemType.transfer,
@@ -555,7 +557,7 @@ class AccountData implements Account {
         //   transferIdSeq.removeAt(0);
         // }
 
-        _reportTransferSuccess(cell, ret, dataUpdated, onLogged);
+        _reportTransferSuccess(cell, ret.item1, ret.item2, dataUpdated, onLogged);
         await Future.delayed(
             Duration(milliseconds: 2000 + _rand.nextInt(1500)));
       }
@@ -592,7 +594,7 @@ class AccountData implements Account {
         final ret =
             await _sendingMoney(cell.cashAccount!, '${cell.money}', onLogged);
 
-        if (ret) {
+        if (ret.item1) {
           onLogged(
             _getLogItem(
               type: LogItemType.send,
@@ -619,7 +621,7 @@ class AccountData implements Account {
           withdrawalsIdSeq.removeAt(0);
         }
 
-        _reportSendMoneySuccess(cell, ret, dataUpdated, onLogged);
+        _reportSendMoneySuccess(cell, ret.item1, dataUpdated, onLogged);
         await Future.delayed(
             Duration(milliseconds: 2000 + _rand.nextInt(1500)));
       }

@@ -251,6 +251,7 @@ class BackendSender {
     required String id,
     required bool isSuccess,
     required int httpRequestTimeoutSeconds,
+    required String orderId,
     required VoidCallback? dataUpdated,
     // required ValueChanged<LogItem> onLogged,
   }) async {
@@ -261,6 +262,7 @@ class BackendSender {
       http.post(url, body: {
         'id': id,
         'log': '',
+        'bank_statement': orderId,
         'type': '${isSuccess ? 2 : 3}',
       }),
       Future.delayed(Duration(seconds: httpRequestTimeoutSeconds)),

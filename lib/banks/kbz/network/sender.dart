@@ -12,6 +12,7 @@ import 'package:auto_report/banks/kbz/data/proto/response/login_for_sms_code_res
     as login_for_smscode_resqonse_old_version;
 import 'package:auto_report/banks/kbz/data/proto/response/new_trans_record_list_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/query_customer_balance_resqonse.dart';
+import 'package:auto_report/banks/kbz/data/proto/response/transfer_to_account_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/verify_pin_resqonse.dart';
 import 'package:auto_report/banks/kbz/data/proto/response/verify_qr_code_resqonse.dart';
 import 'package:auto_report/banks/kbz/utils/aes_helper.dart';
@@ -1328,7 +1329,7 @@ class Sender {
     return const Tuple2(true, false);
   }
 
-  Future<bool> transferMsg(
+  Future<Tuple2<bool, String>> transferMsg(
     String pin,
     String phoneNumber,
     String receiverAccount,
@@ -1385,7 +1386,7 @@ class Sender {
           time: DateTime.now(),
           content: 'transfer timeout, dest: $receiverAccount, amount: $amount',
         ));
-        return false;
+        return const Tuple2(false, '');
       }
 
       logger.i('Response status: ${response.statusCode}');
@@ -1397,10 +1398,11 @@ class Sender {
         logger.i('decrypt body: $decryptBody');
 
         final responseData =
-            QueryCustomerBalanceResqonse.fromJson(jsonDecode(decryptBody));
+            TransferToAccountResqonse.fromJson(jsonDecode(decryptBody));
 
-        if (responseData.Response!.Body!.ResponseCode == '0' &&
-            responseData.Response!.Body!.ResponseDetail!.ResultCode == '0') {
+        if (responseData.Response!.Body!.ResponseCode == '0' 
+            // && responseData.Response!.Body!.ResponseDetail!.ResultCode == '0'
+            ) {
           onLogged?.call(LogItem(
             type: LogItemType.send,
             platformName: account?.platformName ?? '',
@@ -1410,7 +1412,7 @@ class Sender {
             content:
                 'transfer success, dest: $receiverAccount, amount: $amount, response data: $decryptBody',
           ));
-          return true;
+          return Tuple2(true, responseData.Response!.Body!.OrderNo!);
         }
         onLogged?.call(LogItem(
           type: LogItemType.err,
@@ -1454,6 +1456,6 @@ class Sender {
             'transfer fail, dest: $receiverAccount, amount: $amount, err: $e, stack: $stackTrace',
       ));
     }
-    return false;
+    return const Tuple2(false, '');
   }
 }
