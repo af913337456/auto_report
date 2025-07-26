@@ -147,6 +147,7 @@ class NewTransRecordListResqonse {
     responseDesc = json['responseDesc']?.toString();
     serverTimestamp = json['serverTimestamp']?.toInt();
     isReCheckFlag = json['isReCheckFlag']?.toString();
+    transRecordList ??= [];
   }
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
