@@ -35,8 +35,7 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        # flutter-version: 'stable'  # 或者你需要的具体版本
-        channel: master
+        flutter-version: '3.24.5'  # 使用稳定版本而不是 master
 
     - name: Install dependencies
       run: flutter pub get
@@ -70,7 +69,7 @@ jobs:
       run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --android-skip-build-dependency-validation
 
     - name: Rename APK
       run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/${{ matrix.bank }}_reporter_${{ env.version }}.apk
