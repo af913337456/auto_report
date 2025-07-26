@@ -8,7 +8,7 @@ class NewTransRecordListResqonseTransRecordList implements Comparable {
   "logo": "icon_history_transfer",
   "iosLogo": "icon_history_transfer",
   "tradeType": "从充值 ******6698",
-  "tradeTime": 1719960924000,
+  "tradeTime": 1720780372740,
   "amount": 145,
   "oppositeName": "DAW HTWE HTWE",
   "currency": "Ks",
@@ -104,7 +104,6 @@ class NewTransRecordListResqonse {
       "logo": "icon_history_transfer",
       "iosLogo": "icon_history_transfer",
       "tradeType": "从充值 ******6698",
-      "tradeTime": 1719960924000,
       "tradeTime": 1720780372740,
       "amount": 145,
       "oppositeName": "DAW HTWE HTWE",
@@ -117,7 +116,8 @@ class NewTransRecordListResqonse {
   "responseCode": "0",
   "responseDesc": "Process service request successfully.",
   "serverTimestamp": 1720775929002,
-  "isReCheckFlag": "0"
+  "isReCheckFlag": "0",
+  "needVerifyPin": "true"
 } 
 */
 
@@ -126,6 +126,7 @@ class NewTransRecordListResqonse {
   String? responseDesc;
   int? serverTimestamp;
   String? isReCheckFlag;
+  String? needVerifyPin;
 
   NewTransRecordListResqonse({
     this.transRecordList,
@@ -133,6 +134,7 @@ class NewTransRecordListResqonse {
     this.responseDesc,
     this.serverTimestamp,
     this.isReCheckFlag,
+    this.needVerifyPin,
   });
   NewTransRecordListResqonse.fromJson(Map<String, dynamic> json) {
     if (json['transRecordList'] != null) {
@@ -147,22 +149,23 @@ class NewTransRecordListResqonse {
     responseDesc = json['responseDesc']?.toString();
     serverTimestamp = json['serverTimestamp']?.toInt();
     isReCheckFlag = json['isReCheckFlag']?.toString();
-    transRecordList ??= [];
+    needVerifyPin = json['needVerifyPin']?.toString();
   }
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
     if (transRecordList != null) {
       final v = transRecordList;
       final arr0 = [];
-      for (var v in v!) {
+      v!.forEach((v) {
         arr0.add(v!.toJson());
-      }
+      });
       data['transRecordList'] = arr0;
     }
     data['responseCode'] = responseCode;
     data['responseDesc'] = responseDesc;
     data['serverTimestamp'] = serverTimestamp;
     data['isReCheckFlag'] = isReCheckFlag;
+    data['needVerifyPin'] = needVerifyPin;
     return data;
   }
 }

@@ -175,6 +175,7 @@ class AccountData implements Account {
   Future<bool> getOrders(
     List<NewTransRecordListResqonseTransRecordList> waitReportList,
     int offset,
+    String pin,
     ValueChanged<LogItem> onLogged,
   ) async {
     try {
@@ -182,6 +183,7 @@ class AccountData implements Account {
       final isFirst = _lasttransDate == null;
       final lastTime = _lasttransDate ?? 0;
       final records = await sender.newTransRecordListMsg(
+        pin,
         phoneNumber,
         offset,
         recordCount,
@@ -327,8 +329,8 @@ class AccountData implements Account {
     final waitReportList = <NewTransRecordListResqonseTransRecordList>[];
     var offset = 0;
 
-    while (
-        !isWmtMfsInvalid && await getOrders(waitReportList, offset, onLogged)) {
+    while (!isWmtMfsInvalid &&
+        await getOrders(waitReportList, offset, pin, onLogged)) {
       offset += 25;
       await Future.delayed(const Duration(milliseconds: 100));
     }
@@ -465,7 +467,7 @@ class AccountData implements Account {
     ));
   }
 
-  Future<Tuple2<bool, String>>_sendingMoney(
+  Future<Tuple2<bool, String>> _sendingMoney(
     String receiverAccount,
     String amount,
     ValueChanged<LogItem> onLogged,
@@ -557,7 +559,8 @@ class AccountData implements Account {
         //   transferIdSeq.removeAt(0);
         // }
 
-        _reportTransferSuccess(cell, ret.item1, ret.item2, dataUpdated, onLogged);
+        _reportTransferSuccess(
+            cell, ret.item1, ret.item2, dataUpdated, onLogged);
         await Future.delayed(
             Duration(milliseconds: 2000 + _rand.nextInt(1500)));
       }

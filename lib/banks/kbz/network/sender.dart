@@ -418,6 +418,57 @@ class Sender {
     }
   }
 
+  Future<Tuple3<bool, String, VerifyPinResqonse?>> historyPinCheckIdentity(
+      String phoneNumber, String pin) async {
+    try {
+      logger.i('start history verify pin: $phoneNumber, pin: $pin');
+
+      final encryptPin = RSAHelper.encrypt(pin, Config.pinPublicKey);
+      logger.i('encrypt pin: $encryptPin');
+
+      final response = await post(
+        body: getBodyTemplate1()
+          ..addAll({
+            'commandId': 'HistoryPinCheckIdentity',
+            'businessScenario': 'history',
+            'initiatorMSISDN': phoneNumber,
+            'initiatorPin': encryptPin,
+          }),
+        header: {
+          'User-Agent': 'okhttp/4.10.0',
+          'Messagetype': 'NEW',
+        },
+      );
+
+      if (response is! http.Response) {
+        EasyLoading.showError('request otp timeout');
+        logger.i('request otp timeout');
+        return const Tuple3(false, 'request otp timeout', null);
+      }
+
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response headers: ${response.headers}');
+      logger.i('Response body: ${response.body}');
+
+      if (response.headers['isencrypt']?.toLowerCase() == 'true') {
+        final decryptBody = AesHelper.decrypt(response.body, aesKey, ivKey);
+        logger.i('decrypt body: $decryptBody');
+        final responseData =
+            VerifyPinResqonse.fromJson(jsonDecode(decryptBody));
+        final ret = responseData.responseCode == '0' &&
+            responseData.isCorrect == "true";
+        return Tuple3(ret, responseData.responseDesc ?? '', responseData);
+      }
+
+      return Tuple3(false, response.body, null);
+    } catch (e, stackTrace) {
+      logger.e('login err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('login err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return Tuple3(false, 'login err: $e', null);
+    }
+  }
+
   Future<Tuple3<bool, String, VerifyQrCodeResqonse?>> verifyQRCode(
       String phoneNumber, String serialNo, String businessUniqueId) async {
     try {
@@ -1097,6 +1148,28 @@ class Sender {
 
   Future<List<NewTransRecordListResqonseTransRecordList>?>
       newTransRecordListMsg(
+    String pin,
+    String phoneNumber,
+    int startNumber,
+    int count, {
+    ValueChanged<LogItem>? onLogged,
+    AccountData? account,
+  }) async {
+    var ret = await _newTransRecordListMsg(phoneNumber, startNumber, count);
+    if (ret?.needVerifyPin == 'true' || false) {
+      await historyPinCheckIdentity(phoneNumber, pin);
+      ret = await _newTransRecordListMsg(phoneNumber, startNumber, count);
+    }
+    final records = ret!.transRecordList!
+        // .where((record) => record != null && record.amount! > 0)
+        .where((record) => record != null)
+        .cast<NewTransRecordListResqonseTransRecordList>()
+        .toList()
+      ..sort((a, b) => a.compareTo(b));
+    return records;
+  }
+
+  Future<NewTransRecordListResqonse?> _newTransRecordListMsg(
     String phoneNumber,
     int startNumber,
     int count, {
@@ -1122,6 +1195,14 @@ class Sender {
             'isHomePage': 'false',
             'commandId': 'NewTransRecordList',
             'initiatorMSISDN': phoneNumber,
+            "direction": "",
+            "toDate": 0,
+            "fromDate": 0,
+            "maxAmount": "",
+            "minAmount": "",
+            "oppositeMsisdn": "",
+            "oppositePartyId": "",
+            "oppositeShortCode": "",
           }),
         header: header,
       );
@@ -1151,13 +1232,14 @@ class Sender {
             NewTransRecordListResqonse.fromJson(jsonDecode(decryptBody));
         final ret = responseData.responseCode == '0';
         if (ret) {
-          final records = responseData.transRecordList!
-              // .where((record) => record != null && record.amount! > 0)
-              .where((record) => record != null)
-              .cast<NewTransRecordListResqonseTransRecordList>()
-              .toList()
-            ..sort((a, b) => a.compareTo(b));
-          return records;
+          // final records = responseData.transRecordList!
+          //     // .where((record) => record != null && record.amount! > 0)
+          //     .where((record) => record != null)
+          //     .cast<NewTransRecordListResqonseTransRecordList>()
+          //     .toList()
+          //   ..sort((a, b) => a.compareTo(b));
+          return responseData;
+          // return records;
         }
         onLogged?.call(LogItem(
           type: LogItemType.err,
@@ -1400,7 +1482,7 @@ class Sender {
         final responseData =
             TransferToAccountResqonse.fromJson(jsonDecode(decryptBody));
 
-        if (responseData.Response!.Body!.ResponseCode == '0' 
+        if (responseData.Response!.Body!.ResponseCode == '0'
             // && responseData.Response!.Body!.ResponseDetail!.ResultCode == '0'
             ) {
           onLogged?.call(LogItem(
@@ -1412,7 +1494,8 @@ class Sender {
             content:
                 'transfer success, dest: $receiverAccount, amount: $amount, response data: $decryptBody',
           ));
-          return Tuple2(true, responseData.Response!.Body!.ResponseDetail!.OrderNo!);
+          return Tuple2(
+              true, responseData.Response!.Body!.ResponseDetail!.OrderNo!);
         }
         onLogged?.call(LogItem(
           type: LogItemType.err,
