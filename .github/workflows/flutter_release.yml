@@ -35,10 +35,18 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.5'  # 使用稳定版本而不是 master
+        flutter-version: '3.28.0'
 
     - name: Install dependencies
       run: flutter pub get
+
+    - name: Clean and rebuild
+      run: |
+        flutter clean
+        flutter pub get
+        cd android
+        ./gradlew clean
+        cd ..
 
     - name: Create key.properties
       run: |
