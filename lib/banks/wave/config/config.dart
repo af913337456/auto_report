@@ -89,7 +89,7 @@ w8UsJovG2xCw3FHr3Qzl1XRMb19BwYflGgikMbIfAsWhRHC1Gg==''';
   static const appid = 'mm.com.wavemoney.wavepay';
   static const userlanguage = 'en';
   static const acceptEncoding = 'gzip, deflate, br';
-  static const versioncode = '1464';
+  static const versioncode = '1465';
   static const appversion = '2.4.0';
 
   // static const deviceid = 'fd701ebde3dcc9342ab647f5b5800f76ba3a7b5d';

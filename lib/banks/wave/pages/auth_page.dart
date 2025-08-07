@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:auto_report/banks/kbz/utils/aes_helper.dart';
+import 'package:auto_report/banks/kbz/utils/aes_key_generator.dart';
 import 'package:auto_report/banks/wave/config/config.dart';
 import 'package:auto_report/banks/wave/data/account/account_data.dart';
 import 'package:auto_report/banks/wave/data/proto/response/generate_otp_response.dart';
@@ -11,6 +14,8 @@ import 'package:auto_report/proto/report/response/general_response.dart';
 import 'package:auto_report/rsa/rsa_helper.dart';
 import 'package:auto_report/utils/log_helper.dart';
 import 'package:auto_report/widges/platform_selector.dart';
+import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:http/http.dart' as http;
@@ -20,6 +25,7 @@ class AuthPage extends StatefulWidget {
   final List<GetPlatformsResponseData?>? platforms;
   final String? phoneNumber;
   final String? pin;
+  final String? nrc;
   final String? token;
   final String? remark;
 
@@ -28,6 +34,7 @@ class AuthPage extends StatefulWidget {
     required this.platforms,
     this.phoneNumber,
     this.pin,
+    this.nrc,
     this.token,
     this.remark,
   });
@@ -39,11 +46,17 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   String? _phoneNumber;
   String? _pin;
+  String? _nrc;
   String? _otpCode;
   String? _token;
   String? _remark;
 
   String? _wmtMfs;
+
+  // String aesKey = AesKeyGenerator.generateRandomKey1();
+  encrypt.IV ivKey = encrypt.IV.fromLength(16);
+  String? aesKey;
+  // IV? ivKey;
 
   GetPlatformsResponseData? _platformsResponseData;
 
@@ -57,12 +70,57 @@ class _AuthPageState extends State<AuthPage> {
   bool _hasLogin = false;
   bool _hasAuth = false;
 
+  static String generateSessionKey() {
+      // 生成UUID并取前8个字符
+    final uuid = _generateUUID();
+    return uuid.substring(0, 8);
+  }
+  
+  // 生成UUID的简化实现
+  static String _generateUUID() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (i) => random.nextInt(256));
+    
+    // 设置版本位 (version 4)
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    // 设置变体位
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    
+    return [
+      bytes.take(4).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+      bytes.skip(4).take(2).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+      bytes.skip(6).take(2).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+      bytes.skip(8).take(2).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+      bytes.skip(10).take(6).map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+    ].join('-');
+  }
+  
+  // 2. 生成IV（每次请求）
+  // static String generateIV() {
+  //   final random = Random.secure();
+  //   final iv = List<int>.generate(16, (i) => random.nextInt(256));
+  //   return base64Url.encode(iv);
+  // }
+  
+  // 3. 将8字符Key转换为128位AES密钥
+  static Uint8List _convertKeyToAESKey(String key) {
+    // 1. 将8字符Key转换为字节数组
+    final keyBytes = utf8.encode(key);
+    
+    // 2. 计算SHA-1哈希
+    final hash = sha1.convert(keyBytes);
+    
+    // 3. 取前16字节（128位）
+    return Uint8List.fromList(hash.bytes.take(16).toList());
+  }
+
   @override
   void initState() {
     super.initState();
 
     _phoneNumber = widget.phoneNumber ?? '';
     _pin = widget.pin ?? '';
+    _nrc = widget.nrc ?? '';
 
     // _token = widget.token ?? '';
     _token = '';
@@ -96,6 +154,8 @@ class _AuthPageState extends State<AuthPage> {
     _model = _modes[ran.nextInt(_modes.length)];
     _osVersion = _osVersions[ran.nextInt(_osVersions.length)];
     _deviceId = deviceId;
+
+    aesKey = generateSessionKey();
 
     if (Platform.isAndroid) {
       final deviceInfoPlugin = await DeviceInfoPlugin().androidInfo;
@@ -151,6 +211,61 @@ class _AuthPageState extends State<AuthPage> {
       }
       EasyLoading.showInfo('send auth code success.');
       logger.i('request auth code success');
+    } catch (e, stackTrace) {
+      logger.e('auth err: $e', stackTrace: stackTrace);
+      EasyLoading.showError('request err, code: $e',
+          dismissOnTap: true, duration: const Duration(seconds: 60));
+      return;
+    } finally {
+      EasyLoading.dismiss();
+    }
+  }
+
+  _registeredDevices() async {
+    if (_phoneNumber?.isEmpty ?? true) {
+      EasyLoading.showToast('phone number is empty.');
+      return;
+    }
+
+    EasyLoading.show(status: 'loading...');
+    logger.i('registered-devices start');
+    logger.i('Phone number: $_phoneNumber');
+
+    final url = Uri.https(
+        Config.host, 'v3/mfs-customer/registered-devices');
+    final headers = Config.getHeaders(
+        deviceid: _deviceId, model: _model, osversion: _osVersion)
+      ..addAll({
+        "Key": _getKeyAndIV(),
+        "user-agent": "okhttp/4.9.0",
+        Config.wmtMfsKey: _wmtMfs ?? '',
+      });
+    try {
+      final response = await Future.any([
+        http.get(url, headers: headers),
+        Future.delayed(
+            const Duration(seconds: Config.httpRequestTimeoutSeconds)),
+      ]);
+
+      if (response is! http.Response) {
+        EasyLoading.showError('registered-devices timeout');
+        logger.i('registered-devices timeout');
+        return;
+      }
+
+      _wmtMfs = response.headers[Config.wmtMfsKey] ?? _wmtMfs;
+      logger.i('Response status: ${response.statusCode}');
+      logger.i('Response body: ${response.body}');
+      logger.i('$Config.wmtMfsKey: ${response.headers[Config.wmtMfsKey]}');
+
+      final resBody = GeneralResponse.fromJson(jsonDecode(response.body));
+      if (response.statusCode != 200 || !resBody.isSuccess()) {
+        EasyLoading.showToast(
+            resBody.message ?? 'err code: ${response.statusCode}');
+        return;
+      }
+      EasyLoading.showInfo('registered-devices success.');
+      logger.i('registered-devices success');
     } catch (e, stackTrace) {
       logger.e('auth err: $e', stackTrace: stackTrace);
       EasyLoading.showError('request err, code: $e',
@@ -257,6 +372,119 @@ class _AuthPageState extends State<AuthPage> {
     return true;
   }
 
+  String _getSelfAuthoirizedDeviceBody(String nrc, String msisdn) {
+    // Parse NRC format: [前缀]/[区代码][国籍]([类型])[号码]
+    // Example: 5/MaMaTa(N)028788
+    
+    // Extract prefix (before the first '/')
+    final prefix = nrc.split('/').first;
+    
+    // Extract the part after '/' and before the last ')'
+    final afterSlash = nrc.split('/').last;
+    
+    // Find the last '(' to get the type
+    final lastOpenParenIndex = afterSlash.lastIndexOf('(');
+    final lastCloseParenIndex = afterSlash.lastIndexOf(')');
+    
+    if (lastOpenParenIndex == -1 || lastCloseParenIndex == -1) {
+      throw FormatException('Invalid NRC format: $nrc');
+    }
+    
+    // Extract type (between last '(' and ')')
+    // final type = afterSlash.substring(lastOpenParenIndex + 1, lastCloseParenIndex);
+    
+    // Extract number (after the last ')')
+    final number = afterSlash.substring(lastCloseParenIndex + 1);
+    
+    // Extract township code and citizenship (before the last '(')
+    final beforeLastParen = afterSlash.substring(0, lastOpenParenIndex);
+    
+    // Find the citizenship character (should be the last character before '(')
+    String citizenship = '';
+    String townshipCode = '';
+    
+    if (beforeLastParen.isNotEmpty) {
+      citizenship = beforeLastParen.substring(beforeLastParen.length - 1);
+      townshipCode = beforeLastParen.substring(0, beforeLastParen.length - 1);
+    }
+    
+    // Create the identification object
+    final identification = {
+      "msisdn": msisdn,
+      "citizenship": citizenship,
+      "number": number,
+      "idNumber": nrc,  // Complete NRC number
+      "prefix": prefix,
+      "townshipCode": townshipCode,
+      "type": "NRC"
+    };
+    
+    // Return as JSON string
+    return jsonEncode({
+      "identification": identification
+    });
+  }
+
+  String _getKeyAndIV() {
+    // final keyBase64 = base64.encode(utf8.encode(aesKey));
+    final ivBase64 = base64.encode(ivKey.bytes);
+    final key = '$aesKey:$ivBase64';
+    // final key1 = base64.encode(utf8.encode(key));
+    final key1 = RSAHelper.encrypt(key, Config.rsaPublicKey);
+    return key1;
+  }
+
+  Future<bool> _selfAuthoirizedDevice() async {
+    final url = Uri.https(Config.host, 'v3/mfs-customer/self-authoirized-device');
+    final headers = Config.getHeaders(
+        deviceid: _deviceId, 
+        model: _model, 
+        osversion: _osVersion,
+        )
+      ..addAll({
+        // 'Content-Type': 'application/x-www-form-urlencoded',
+        "Key": _getKeyAndIV(),
+        "user-agent": "okhttp/4.9.0",
+        Config.wmtMfsKey: _wmtMfs ?? '',
+      });
+
+    final aseKey1 = _convertKeyToAESKey(aesKey!);
+    final formData =_getSelfAuthoirizedDeviceBody(_nrc!, _phoneNumber!);
+    final bodyData = AesHelper.encrypt1(formData, encrypt.Key(aseKey1), ivKey);
+
+    logger.i('Authoirized start');
+    logger.i('Phone number: $_phoneNumber');
+    logger.i('auth code: $_otpCode');
+    logger.i('form data: $formData');
+    final response = await Future.any([
+      http.post(url, headers: headers, body: bodyData),
+      Future.delayed(const Duration(seconds: Config.httpRequestTimeoutSeconds)),
+    ]);
+
+    if (response is! http.Response) {
+      EasyLoading.showError('firm auth timeout');
+      logger.i('firm auth timeout');
+      return false;
+    }
+
+    _wmtMfs = response.headers[Config.wmtMfsKey] ?? _wmtMfs;
+    logger.i('Response status: ${response.statusCode}');
+    logger.i('Response body: ${response.body}');
+    logger.i('$Config.wmtMfsKey: ${response.headers[Config.wmtMfsKey]}');
+
+    final resBody = GeneralResponse.fromJson(jsonDecode(response.body));
+    // if (response.statusCode != 200 || !resBody.isSuccess()) {
+    if (response.statusCode != 200) {
+      logger.e('Authoirized code errr: ${response.statusCode}',
+          stackTrace: StackTrace.current);
+      EasyLoading.showToast(
+          resBody.message ?? 'err code: ${response.statusCode}');
+      return false;
+    }
+    logger.i('Authoirized success');
+    return true;
+  }
+
   bool _checkInput({bool checkOtp = true}) {
     if (_phoneNumber?.isEmpty ?? true) {
       EasyLoading.showToast('phone number is empty.');
@@ -268,6 +496,10 @@ class _AuthPageState extends State<AuthPage> {
     }
     if (_pin?.isEmpty ?? true) {
       EasyLoading.showToast('pin is empty.');
+      return false;
+    }
+    if (_nrc?.isEmpty ?? true) {
+      EasyLoading.showToast('nrc is empty.');
       return false;
     }
     if (checkOtp && (_otpCode?.isEmpty ?? true)) {
@@ -285,15 +517,15 @@ class _AuthPageState extends State<AuthPage> {
     return true;
   }
 
-  void _login() async {
-    if (!_checkInput()) return;
+  Future<bool> _login() async {
+    if (!_checkInput()) return false;
 
     EasyLoading.show(status: 'loading...');
     try {
       // 验证验证码
       if (!await _confirmAuthCode()) {
         // EasyLoading.showError('confirm auth code fail.');
-        return;
+        return false;
       }
 
       final token1 = await _generateToken();
@@ -301,7 +533,7 @@ class _AuthPageState extends State<AuthPage> {
 
       if (token1 == null || token2 == null) {
         EasyLoading.showError('get token timeout.');
-        return;
+        return false;
       }
 
       final password = RSAHelper.encrypt('$_pin:$token1', Config.rsaPublicKey);
@@ -341,7 +573,7 @@ class _AuthPageState extends State<AuthPage> {
       if (response is! http.Response) {
         EasyLoading.showError('login timeout');
         logger.i('login timeout');
-        return;
+        return false;
       }
 
       _wmtMfs = response.headers[Config.wmtMfsKey] ?? _wmtMfs;
@@ -353,19 +585,36 @@ class _AuthPageState extends State<AuthPage> {
         logger.e('login wave err: ${response.statusCode}',
             stackTrace: StackTrace.current);
         EasyLoading.showToast('login err: ${response.statusCode}');
-        return;
+        return false;
       }
 
       logger.i('login wave success');
-      setState(() => _hasLogin = true);
+      // setState(() => _hasLogin = true);
     } catch (e, stackTrace) {
       logger.e('err: $e', stackTrace: stackTrace);
       EasyLoading.showError('request err, code: $e',
           dismissOnTap: true, duration: const Duration(seconds: 60));
-      return;
+        return false;
     } finally {
       EasyLoading.dismiss();
     }
+    return true;
+  }
+
+  void _login1() async {
+    // var ret = await _login();
+    // if (!ret) return;
+    // aesKey = AesKeyGenerator.generateRandomKey1();
+    aesKey = generateSessionKey();
+
+    await _registeredDevices();
+
+    EasyLoading.show(status: 'loading...');
+    if (!await _selfAuthoirizedDevice()) return;
+    EasyLoading.dismiss();
+
+    
+    setState(() => _hasLogin = true);
   }
 
   void _auth() async {
@@ -502,6 +751,16 @@ class _AuthPageState extends State<AuthPage> {
                 decoration: _buildInputDecoration("pin", Icons.password),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
+              child: TextFormField(
+                controller: TextEditingController()..text = _nrc ?? "",
+                onChanged: (value) => _nrc = value,
+                // validator: _validator,
+                keyboardType: TextInputType.number,
+                decoration: _buildInputDecoration("nrc", Icons.perm_identity),
+              ),
+            ),
             OutlinedButton(
                 onPressed: _requestOtp, child: const Text('request otp code.')),
             Padding(
@@ -529,7 +788,7 @@ class _AuthPageState extends State<AuthPage> {
               children: [
                 const Spacer(),
                 OutlinedButton(
-                  onPressed: _hasLogin ? null : _login,
+                  onPressed: _hasLogin ? null : _login1,
                   child: Text(_hasLogin ? 'logined wave' : 'login wave'),
                 ),
                 const Padding(padding: EdgeInsets.only(left: 15, right: 15)),

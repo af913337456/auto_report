@@ -25,6 +25,48 @@ class AesHelper {
     }
   }
 
+  static String encrypt1(String content, Key aesKey, IV ivKey) {
+    try {
+      final key = aesKey;
+      final iv = ivKey;
+
+      if (iv.bytes.length != 16) {
+        logger.e("IV length is not equal to 16");
+        return "";
+      }
+
+      final encrypter =
+          Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
+
+      final encrypted = encrypter.encrypt(content, iv: iv);
+      return encrypted.base64;
+    } catch (e, s) {
+      logger.e(e, stackTrace: s);
+      return "";
+    }
+  }
+
+  // static String encrypt1(String content, String aesKey, Uint8 ivKey) {
+  //   try {
+  //     final key = Key.fromBase64(aesKey);
+  //     final iv = IV.fromUtf8(ivKey);
+
+  //     if (iv.bytes.length != 16) {
+  //       logger.e("IV length is not equal to 16");
+  //       return "";
+  //     }
+
+  //     final encrypter =
+  //         Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
+
+  //     final encrypted = encrypter.encrypt(content, iv: iv);
+  //     return encrypted.base64;
+  //   } catch (e, s) {
+  //     logger.e(e, stackTrace: s);
+  //     return "";
+  //   }
+  // }
+
   static Uint8List pkcs7UnPadding(Uint8List data) {
     // final length = data.length;
     // final unPadding = data[length - 1];

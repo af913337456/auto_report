@@ -41,4 +41,28 @@ class AesKeyGenerator {
 
     return base64Encode(key);
   }
+
+  
+  static const _keySize1 = 32;
+  static String generateRandomKey1() {
+    final random = Random.secure();
+    final key = Uint8List(_keySize);
+
+    for (int i = 0; i < _keySize; i++) {
+      key[i] = random.nextInt(_keySize1);
+    }
+
+    return base64Encode(key);
+  }
+
+  static Uint8List generateRandomKeyBytes(int length) {
+    final random = Random.secure();
+    final key = Uint8List(length);
+
+    for (int i = 0; i < length; i++) {
+      key[i] = random.nextInt(256);
+    }
+
+    return key;
+  }
 }
