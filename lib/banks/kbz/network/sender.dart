@@ -1160,7 +1160,8 @@ class Sender {
       await historyPinCheckIdentity(phoneNumber, pin);
       ret = await _newTransRecordListMsg(phoneNumber, startNumber, count);
     }
-    final records = ret!.transRecordList!
+    if (ret == null || ret.transRecordList == null) return [];
+    final records = ret.transRecordList!
         // .where((record) => record != null && record.amount! > 0)
         .where((record) => record != null)
         .cast<NewTransRecordListResqonseTransRecordList>()
