@@ -278,9 +278,9 @@ class AccountData implements Account {
     isUpdating = true;
 
     try {
+      final orderRefreshTime = max(dm.orderRefreshTime, 70);
       if (!disableReport &&
-          DateTime.now().difference(lastUpdateTime).inSeconds >=
-              dm.orderRefreshTime) {
+          DateTime.now().difference(lastUpdateTime).inSeconds >= orderRefreshTime) {
         logger.i('start get orders, phone: $phoneNumber');
         await _updateOrder(dataUpdated, onLogged);
         logger.i('end get orders, phone: $phoneNumber');

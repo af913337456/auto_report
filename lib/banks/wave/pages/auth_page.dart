@@ -501,10 +501,10 @@ class _AuthPageState extends State<AuthPage> {
     //   EasyLoading.showToast('nrc is empty.');
     //   return false;
     // }
-    // if (checkOtp && (_otpCode?.isEmpty ?? true)) {
-    //   EasyLoading.showToast('auth code is empty.');
-    //   return false;
-    // }
+    if (checkOtp && (_otpCode?.isEmpty ?? true)) {
+      EasyLoading.showToast('auth code is empty.');
+      return false;
+    }
     if (_token?.isEmpty ?? true) {
       EasyLoading.showToast('token is empty.');
       return false;
@@ -603,8 +603,8 @@ class _AuthPageState extends State<AuthPage> {
   void _login1() async {
     if (!_checkInput(checkOtp: false)) return;
 
-    // var ret = await _login();
-    // if (!ret) return;
+    var ret = await _login();
+    if (!ret) return;
 
     // aesKey = AesKeyGenerator.generateRandomKey1();
     // aesKey = generateSessionKey();
@@ -752,26 +752,26 @@ class _AuthPageState extends State<AuthPage> {
                 decoration: _buildInputDecoration("pin", Icons.password),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
-              child: TextFormField(
-                controller: TextEditingController()..text = _wmtMfs ?? "",
-                onChanged: (value) => _wmtMfs = value,
-                // validator: _validator,
-                keyboardType: TextInputType.number,
-                decoration: _buildInputDecoration("wmtMfs", Icons.perm_identity),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
-              child: TextFormField(
-                controller: TextEditingController()..text = _deviceId,
-                onChanged: (value) => _deviceId = value,
-                // validator: _validator,
-                keyboardType: TextInputType.text,
-                decoration: _buildInputDecoration("device id", Icons.important_devices),
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
+            //   child: TextFormField(
+            //     controller: TextEditingController()..text = _wmtMfs ?? "",
+            //     onChanged: (value) => _wmtMfs = value,
+            //     // validator: _validator,
+            //     keyboardType: TextInputType.number,
+            //     decoration: _buildInputDecoration("wmtMfs", Icons.perm_identity),
+            //   ),
+            // ),
+            // Padding(
+            //   padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
+            //   child: TextFormField(
+            //     controller: TextEditingController()..text = _deviceId,
+            //     onChanged: (value) => _deviceId = value,
+            //     // validator: _validator,
+            //     keyboardType: TextInputType.text,
+            //     decoration: _buildInputDecoration("device id", Icons.important_devices),
+            //   ),
+            // ),
             OutlinedButton(
                 onPressed: _requestOtp, child: const Text('request otp code.')),
             Padding(
