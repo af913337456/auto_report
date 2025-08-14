@@ -5,7 +5,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:auto_report/banks/kbz/utils/aes_helper.dart';
-import 'package:auto_report/banks/kbz/utils/aes_key_generator.dart';
 import 'package:auto_report/banks/wave/config/config.dart';
 import 'package:auto_report/banks/wave/data/account/account_data.dart';
 import 'package:auto_report/banks/wave/data/proto/response/generate_otp_response.dart';
@@ -498,14 +497,14 @@ class _AuthPageState extends State<AuthPage> {
       EasyLoading.showToast('pin is empty.');
       return false;
     }
-    if (_nrc?.isEmpty ?? true) {
-      EasyLoading.showToast('nrc is empty.');
-      return false;
-    }
-    if (checkOtp && (_otpCode?.isEmpty ?? true)) {
-      EasyLoading.showToast('auth code is empty.');
-      return false;
-    }
+    // if (_nrc?.isEmpty ?? true) {
+    //   EasyLoading.showToast('nrc is empty.');
+    //   return false;
+    // }
+    // if (checkOtp && (_otpCode?.isEmpty ?? true)) {
+    //   EasyLoading.showToast('auth code is empty.');
+    //   return false;
+    // }
     if (_token?.isEmpty ?? true) {
       EasyLoading.showToast('token is empty.');
       return false;
@@ -555,7 +554,7 @@ class _AuthPageState extends State<AuthPage> {
       logger.i('login wave start');
       logger.i('form data: $formData');
 
-      final url = Uri.https(Config.host, 'v2/mfs-customer/login');
+      final url = Uri.https(Config.host, 'v3/mfs-customer/login');
       final headers = Config.getHeaders(
           deviceid: _deviceId, model: _model, osversion: _osVersion)
         ..addAll({
@@ -602,18 +601,20 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   void _login1() async {
+    if (!_checkInput(checkOtp: false)) return;
+
     // var ret = await _login();
     // if (!ret) return;
+
     // aesKey = AesKeyGenerator.generateRandomKey1();
-    aesKey = generateSessionKey();
+    // aesKey = generateSessionKey();
 
-    await _registeredDevices();
+    // await _registeredDevices();
 
-    EasyLoading.show(status: 'loading...');
-    if (!await _selfAuthoirizedDevice()) return;
-    EasyLoading.dismiss();
+    // EasyLoading.show(status: 'loading...');
+    // if (!await _selfAuthoirizedDevice()) return;
+    // EasyLoading.dismiss();
 
-    
     setState(() => _hasLogin = true);
   }
 
@@ -754,11 +755,21 @@ class _AuthPageState extends State<AuthPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
               child: TextFormField(
-                controller: TextEditingController()..text = _nrc ?? "",
-                onChanged: (value) => _nrc = value,
+                controller: TextEditingController()..text = _wmtMfs ?? "",
+                onChanged: (value) => _wmtMfs = value,
                 // validator: _validator,
                 keyboardType: TextInputType.number,
-                decoration: _buildInputDecoration("nrc", Icons.perm_identity),
+                decoration: _buildInputDecoration("wmtMfs", Icons.perm_identity),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(15, 15, 15, 15),
+              child: TextFormField(
+                controller: TextEditingController()..text = _deviceId,
+                onChanged: (value) => _deviceId = value,
+                // validator: _validator,
+                keyboardType: TextInputType.text,
+                decoration: _buildInputDecoration("device id", Icons.important_devices),
               ),
             ),
             OutlinedButton(
@@ -817,7 +828,7 @@ class _AuthPageState extends State<AuthPage> {
                           platformMark: _platformsResponseData!.mark!,
                           phoneNumber: _phoneNumber!,
                           pin: _pin!,
-                          authCode: _otpCode!,
+                          authCode: _otpCode ?? '000000',
                           wmtMfs: _wmtMfs!,
                           isWmtMfsInvalid: false,
                           deviceId: _deviceId,
