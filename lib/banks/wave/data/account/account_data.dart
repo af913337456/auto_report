@@ -374,18 +374,19 @@ class AccountData implements Account {
     // } else {}
     // } while (false);
 
+    const limitCnt = 40;
     var offset = 0;
     var isSuccess = false;
     while (!isWmtMfsInvalid) {
       final ret = await getOrders(
         waitReportList,
         offset: offset,
-        limit: 40,
+        limit: limitCnt,
         onLogged: onLogged,
       );
       isSuccess = ret.item1;
       if (!ret.item2) break;
-      offset += 15;
+      offset += limitCnt - 5;
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
