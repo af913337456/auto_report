@@ -380,7 +380,7 @@ class AccountData implements Account {
       final ret = await getOrders(
         waitReportList,
         offset: offset,
-        limit: 20,
+        limit: 40,
         onLogged: onLogged,
       );
       isSuccess = ret.item1;
