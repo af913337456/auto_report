@@ -35,6 +35,7 @@ class BackendSender {
       final url = Uri.http(host, path);
       logger.i('url: ${url.toString()}');
       logger.i('host: $host, path: $path');
+      logger.i('orderId: $orderId, payCardNum: $payCardNum, terminal: $remark');
       final response = await Future.any([
         http.post(url, body: {
           'token': token,

@@ -130,7 +130,7 @@ final class HistoriesResponseResponseMapTnxHistoryList implements Comparable {
     return 0;
   }
 
-  final _regex = RegExp(r'(\**\d+)');
+  final _regex = RegExp(r'\((\*+\d+)\)');
   String target() {
     final match = _regex.firstMatch(action ?? '');
 
