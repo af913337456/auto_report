@@ -1,4 +1,4 @@
-name: auto report Release
+name: auto report test
 
 on:
   push:

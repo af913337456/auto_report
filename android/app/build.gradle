@@ -39,17 +39,23 @@ android {
 
     signingConfigs {
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            } else {
+                // Use debug signing config if no key.properties file exists
+                keyAlias android.signingConfigs.debug.keyAlias
+                keyPassword android.signingConfigs.debug.keyPassword
+                storeFile android.signingConfigs.debug.storeFile
+                storePassword android.signingConfigs.debug.storePassword
+            }
         }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.release
         }
     }
@@ -57,4 +63,14 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Fix for Kotlin compiler path issues
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        freeCompilerArgs += [
+            "-Xskip-prerelease-check",
+            "-Xjvm-default=all"
+        ]
+    }
 }
