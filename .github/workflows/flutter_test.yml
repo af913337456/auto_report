@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Java
       uses: actions/setup-java@v2
@@ -22,8 +22,8 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        # flutter-version: 'stable'  # 或者你需要的具体版本
-        channel: master
+        flutter-version: '3.29.3'  # 使用稳定版本
+        channel: 'stable'
 
     - name: Install dependencies
       run: flutter pub get
