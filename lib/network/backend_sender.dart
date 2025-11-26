@@ -32,7 +32,8 @@ class BackendSender {
     try {
       final host = platformUrl.replaceAll('http://', '');
       // const path = 'api/pay/payinfo_app';
-      const path = 'api/pay/bankinfo_app';
+      // const path = 'api/pay/bankinfo_app';
+      const path = 'api/pay/topup_app';
       final url = Uri.http(host, path);
       logger.i('url: ${url.toString()}');
       logger.i('host: $host, path: $path');
@@ -98,7 +99,8 @@ class BackendSender {
     try {
       final host = platformUrl.replaceAll('http://', '');
       // const path = 'api/pay/get_cash_list2';
-      const path = 'api/pay/get_refund_all_list';
+      // const path = 'api/pay/get_refund_all_list';
+      const path = 'api/pay/refund_info_more';
       final url = Uri.http(host, path);
       final response = await Future.any([
         http.post(url, body: {
@@ -153,7 +155,8 @@ class BackendSender {
     try {
       final host = platformUrl.replaceAll('http://', '');
       // const path = 'api/pay/get_recharge_transfer_list';
-      const path = 'api/pay/account_transfer_list';
+      // const path = 'api/pay/account_transfer_list';
+      const path = 'api/pay/asset_transfer';
       final url = Uri.http(host, path);
       final response = await Future.any([
         http.post(url, body: {
@@ -211,7 +214,8 @@ class BackendSender {
   }) async {
     final host = platformUrl.replaceAll('http://', '');
     // const path = 'api/pay/callback_cash';
-    const path = 'api/pay/callback_refund';
+    // const path = 'api/pay/callback_refund';
+    const path = 'api/pay/refund_notice';
     final url = Uri.http(host, path);
     final response = await Future.any([
       http.post(url, body: {
@@ -263,7 +267,8 @@ class BackendSender {
   }) async {
     final host = platformUrl.replaceAll('http://', '');
     // const path = 'api/pay/callback_recharge_transfer';
-    const path = 'api/pay/callback_account_transfer';
+    // const path = 'api/pay/callback_account_transfer';
+    const path = 'api/pay/asset_transfer_notice';
     final url = Uri.http(host, path);
     final response = await Future.any([
       http.post(url, body: {

@@ -468,7 +468,8 @@ class _AuthPageState extends State<AuthPage> {
       {
         final host = _platformsResponseData!.url!.replaceAll('http://', '');
         // const path = 'api/pay/payinfo_apply';
-        const path = 'api/pay/tool_apply';
+        // const path = 'api/pay/tool_apply';
+        const path = 'api/pay/purview_apply';
         final url = Uri.http(host, path, {
           'token': _token,
           'phone': _phoneNumber,
@@ -503,7 +504,8 @@ class _AuthPageState extends State<AuthPage> {
 
       final host = _platformsResponseData!.url!.replaceAll('http://', '');
       // const path = 'api/pay/payinfo_verify';
-      const path = 'api/pay/tool_verify';
+      // const path = 'api/pay/tool_verify';
+      const path = 'api/pay/purview_verify';
       final url = Uri.http(host, path, {
         'token': _token,
         'phone': _phoneNumber,
